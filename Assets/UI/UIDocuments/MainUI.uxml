@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements" editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <ui:Template name="SelectedObject" src="project://database/Assets/UI/SelectedObject.uxml?fileID=9197481963319205126&amp;guid=43e47cce14ca3fe428bd1c5833de06c5&amp;type=3#SelectedObject" />
+    <ui:VisualElement name="main-ui" style="width: 100%; height: 100%;">
+        <ui:VisualElement style="flex-direction: row;">
+            <ui:Instance template="SelectedObject" name="selected-object" style="width: 20%;" />
+        </ui:VisualElement>
+        <ui:VisualElement name="build-menu" style="flex-direction: row; -unity-text-align: lower-left; height: auto; bottom: 0; position: absolute;" />
+    </ui:VisualElement>
+</ui:UXML>

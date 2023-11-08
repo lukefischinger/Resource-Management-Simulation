@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:Label text="Name" display-tooltip-when-elided="true" name="object-name" style="font-size: 36px; -unity-text-align: upper-center;" />
+    <ui:VisualElement name="resources" style="margin-left: 15px; margin-right: 15px; margin-top: 15px; margin-bottom: 15px; font-size: 24px;" />
+</ui:UXML>

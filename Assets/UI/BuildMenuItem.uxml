@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
+    <ui:VisualElement name="build-menu-item" style="width: auto; height: auto;">
+        <ui:IMGUIContainer name="buildable-sprite" style="background-image: url(&apos;project://database/Packages/com.unity.2d.animation/Editor/Assets/SkinningModule/Icons/Light/Bone.png?fileID=21300000&amp;guid=62ce01ddca719d34ea9648c586a7cc94&amp;type=3#Bone&apos;); width: 60px; height: 60px;" />
+        <ui:Label text="Label" display-tooltip-when-elided="true" name="buildable-name" style="-unity-text-align: lower-center; width: 60px;" />
+    </ui:VisualElement>
+</ui:UXML>

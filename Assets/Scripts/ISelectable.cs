@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -6,32 +7,32 @@ public interface ISelectable
     public void Select();
     public void Deselect();
     public Resources GetDisplayData();
-    Transform transform { get; }
-    GameObject gameObject { get; }
+    public Transform transform { get; }
+    public GameObject gameObject { get; }
 }
 
 public interface ITransactionable
 {
     public static Resources GetMaxTransaction(Resources fromLimits, Resources toLimits, float fromLimit, float toLimit)
     {
-        Resources result = new Resources();
+        List<Resource> intersection = fromLimits.ToList().Intersect(toLimits.ToList()).ToList();
+        Resources result = new Resources(intersection, 0f);
         float totalLimit = Mathf.Min(fromLimit, toLimit);
 
-        foreach (var e in fromLimits.Package)
+        foreach (var resource in result.ToList())
         {
-            if (toLimits.Contains(e.Key))
+            result.Add(resource, Mathf.Min(fromLimits.Get(resource), toLimits.Get(resource), totalLimit));
+            if (result.Weight > totalLimit)
             {
-                result.Add(e.Key, Mathf.Min(e.Value, toLimits.Get(e.Key)));
-                if (result.Weight > totalLimit)
-                {
-                    result.Remove(e.Key, (result.Weight - totalLimit) / ResourceWeights.Weight(e.Key));
-                    break;
-                }
+                result.Remove(resource, (result.Weight - totalLimit) / ResourceWeights.Weight(resource));
+                break;
             }
         }
 
         return result;
     }
+
+    public GameObject gameObject { get; }
 }
 
 public interface IDepositable : ITransactionable
@@ -44,7 +45,6 @@ public interface IWithdrawable : ITransactionable
 {
     public Resources Withdraw(Resources resources);
     public Resources GetAvailableWithdrawals(Resources attempt);
-
     public Resources GetCurrentResources();
 }
 
@@ -54,9 +54,9 @@ public interface ITransporter
 
     public void Unassign(IAssignable assignment);
 
-    public void SetNewDeposit();
+    public void SetNewAssociatable(Associatable calledBy);
 
-    public void SetNewWithdraw();
+    public GameObject gameObject{ get; }
 }
 
 

@@ -1,15 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(Withdrawable))]
+[RequireComponent(typeof(Withdrawable), typeof(Associatable))]
 public class ResourceSource : MonoBehaviour, IAssignable
 {
 
     [SerializeField] List<Resource> startingResources;
     [SerializeField] List<float> startingQuantities;
-    Withdrawable resources;
+    Withdrawable withdraw;
     SpriteRenderer myRenderer;
-    
+    Associatable associatable;
+    ResourceBank resourceBank;
 
     public void BeAssigned(ITransporter transporter)
     {
@@ -28,7 +29,7 @@ public class ResourceSource : MonoBehaviour, IAssignable
 
     public Resources GetDisplayData()
     {
-        return resources.GetCurrentResources();
+        return withdraw.GetCurrentResources();
     }
 
     public void Select()
@@ -36,10 +37,22 @@ public class ResourceSource : MonoBehaviour, IAssignable
         myRenderer.color = Color.blue;
     }
 
-    void Start()
+    void Awake()
     {
-        resources = GetComponent<Withdrawable>();
-        resources.Initialize(startingResources, startingQuantities);
+        withdraw = GetComponent<Withdrawable>();
         myRenderer = GetComponent<SpriteRenderer>();
+        associatable = GetComponent<Associatable>();
+        resourceBank = GetComponent<ResourceBank>();
+        resourceBank.Initialize(startingResources, startingQuantities);
+    }
+
+    void OnEnable()
+    {
+        resourceBank.Empty += associatable.EndAllAssociations;
+    }
+
+    void OnDisable()
+    {
+        resourceBank.Empty -= associatable.EndAllAssociations;
     }
 }

@@ -167,6 +167,8 @@ public class Resources
 	{
 		return Package.Keys.ToList();
 	}
+
+	public static Resources Infinity => new Resources(Mathf.Infinity);
 	
 
 

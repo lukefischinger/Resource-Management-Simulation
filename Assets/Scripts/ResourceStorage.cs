@@ -10,13 +10,18 @@ public class ResourceStorage : MonoBehaviour, ISelectable
 	Depositable deposit;
 	Withdrawable withdraw;
 	SpriteRenderer myRenderer;
+	ResourceBank resourceBank;
+	Associatable associatable;
 
 	
-	void Start()
+	void Awake()
 	{
 		myRenderer = GetComponent<SpriteRenderer>();
 		deposit = GetComponent<Depositable>();
 		withdraw = GetComponent<Withdrawable>();
+		resourceBank = GetComponent<ResourceBank>();
+		associatable = GetComponent<Associatable>();
+
 		deposit.Initialize(startingResources, startingQuantities);
 	}
 
@@ -35,12 +40,15 @@ public class ResourceStorage : MonoBehaviour, ISelectable
 		myRenderer.color = Color.green;
 	}
 
-    public void AddAssociation()
+
+
+    void OnEnable()
     {
+        resourceBank.Full += associatable.EndAllAssociations;
     }
 
-    public void RemoveAssociation()
+    void OnDisable()
     {
-        throw new System.NotImplementedException();
+        resourceBank.Full -= associatable.EndAllAssociations;
     }
 }

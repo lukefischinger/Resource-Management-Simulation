@@ -24,8 +24,7 @@ public class BuildableManager : MonoBehaviour
 		foreach (var data in Prefabs)
 		{
 			if (data.name == name)
-			{
-				Debug.Log("returning " + name);
+			{				
 				return data;
 			}
 		}

@@ -243,6 +243,10 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         await PerformDepositOrWithdrawal(collision);
     }
 
+    async void OnCollisionStay2D(Collision2D collision) {
+        await PerformDepositOrWithdrawal(collision);
+    }
+
     async Task PerformDepositOrWithdrawal(Collision2D collision)
     {
         GameObject collidedObject = collision.gameObject;
@@ -331,7 +335,6 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
             to.Deposit(requested);
         }
 
-        Debug.Log(gameObject.name + (withdrawal ? " withdrew from " + from.gameObject.name : "deposited to " + to.gameObject.name));
     }
 
     public void Select()

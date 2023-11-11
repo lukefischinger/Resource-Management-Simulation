@@ -4,7 +4,7 @@ using UnityEngine;
 public class Associatable : MonoBehaviour
 {
     public int Count { get; private set; }
-    public int MaxCount { get; private set; } = 2;
+    public int MaxCount { get; private set; } = 10;
 
 
     public List<ITransporter> Associates { get; private set; } = new List<ITransporter>();
@@ -60,7 +60,7 @@ public class Associatable : MonoBehaviour
         foreach (var associate in Associates)
         {
             output += associate.gameObject.name + ", ";
-            associate.SetNewAssociatable(this);
+            //associate.SetNewAssociatable(this);
         }
     }
 

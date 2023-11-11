@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class ResourceProcessor : MonoBehaviour, IAssignable
@@ -12,6 +13,7 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
 
     Color baseColor;
 
+    public int Priority { get; private set; } = 0;
     public void Select()
     {
         myRenderer.color = Color.cyan;
@@ -22,7 +24,7 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
         myRenderer.color = baseColor;
     }
 
-    public Resources GetDisplayData()
+    public async Task<Resources> GetDisplayData()
     {
         List<Resource> list = inBank.myResources.ToList();
         list.AddRange(outBank.myResources.ToList());
@@ -35,7 +37,7 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
         return result;
     }
 
-   
+
     private void Awake()
     {
         myRenderer = GetComponent<SpriteRenderer>();
@@ -50,12 +52,24 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
         inAssociatable = GetComponent<Associatable>();
         outAssociatable = transform.GetChild(0).GetComponent<Associatable>();
 
+        foreach (Resource r in outResources)
+        {
+            if ((int)r > Priority)
+            {
+                Priority = (int)r;
+            }
+        }
+
+        Priority += System.Enum.GetValues(typeof(Resource)).Cast<int>().Max() + 1;
+
     }
 
 
 
-    void Convert() {
-        if(inBank.Weight > 0) {
+    void Convert()
+    {
+        if (inBank.Weight > 0)
+        {
             float conversionAmount = inBank.Remove(inResources[0], inBank.myResources.Get(inResources[0]));
             outBank.Add(outResources[0], conversionAmount);
         }
@@ -89,4 +103,6 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
         inBank.Full -= inAssociatable.EndAllAssociations;
         outBank.Empty -= outAssociatable.EndAllAssociations;
     }
+
+   
 }

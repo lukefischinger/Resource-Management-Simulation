@@ -3,6 +3,7 @@ using UnityEngine;
 using System.Linq;
 using UnityEngine.InputSystem;
 using System.Net;
+using System.Threading.Tasks;
 
 [RequireComponent(typeof(ResourceBank))]
 public class Withdrawable : MonoBehaviour, IWithdrawable
@@ -21,12 +22,12 @@ public class Withdrawable : MonoBehaviour, IWithdrawable
         }
     }
 
-    public Resources GetAvailableWithdrawals(Resources attempt)
+    public async Task<Resources> GetAvailableWithdrawals(Resources attempt)
     {
-        return ITransactionable.GetMaxTransaction(bank.myResources, attempt, Mathf.Infinity, Mathf.Infinity);
+        return await ITransactionable.GetMaxTransaction(bank.myResources, attempt, Mathf.Infinity, Mathf.Infinity);
     }
 
-    public Resources GetCurrentResources()
+    public async Task<Resources> GetCurrentResources()
     {
         return bank.myResources;
     }

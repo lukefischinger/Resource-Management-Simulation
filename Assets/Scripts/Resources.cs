@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+[Serializable]
 public class Resources
 {
 	Dictionary<Resource, float> package;
@@ -132,7 +133,7 @@ public class Resources
 		{
 			throw new ArgumentException("cannot add a new resource", nameof(resource));
 		}
-		else
+		else 
 		{
 			Package[resource] += amount;
 			Weight += amount * ResourceWeights.Weight(resource);

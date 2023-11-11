@@ -1,8 +1,17 @@
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 public class Worker : MonoBehaviour, ISelectable, ITransporter
 {
+
+    // Debugging fields
+
+    public string depositName, withdrawName, assignmentName;
+
+    // end debugging
+
+
     const float moveSpeed = 3f;
     public enum WorkerState { Idling, ToWithdraw, ToDeposit };
     public WorkerState state = WorkerState.Idling;
@@ -10,7 +19,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     private Rigidbody2D myRigidbody;
     private SpriteRenderer myRenderer;
     private bool hasNewAssignment;
-    private const float idleTryNewAssignmentTime = 10f;
+    private const float idleTryNewAssignmentTime = 2f;
     private float idleTimer;
     private Depositable myDeposit;
     private Withdrawable myWithdraw;
@@ -18,7 +27,20 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     private ResourceBankManager bankManager;
     private bool IsWithdrawing => state == WorkerState.ToWithdraw;
     private bool IsDepositing => state == WorkerState.ToDeposit;
-    public IAssignable Assignment { get; private set; }
+    private IAssignable assignment;
+    public IAssignable Assignment
+    {
+        get
+        {
+            return assignment;
+        }
+        private set
+        {
+            assignment = value;
+            assignmentName = assignment == null ? "null" : assignment.gameObject.name;
+        }
+    }
+
     private Withdrawable withdraw;
     public Withdrawable Withdraw
     {
@@ -32,6 +54,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
             withdraw = value;
             TryAddAssociation(value);
             withdrawTransform = (value == null) ? null : value.transform;
+            withdrawName = (withdraw == null) ? "null" : withdraw.gameObject.name;
 
         }
     }
@@ -49,6 +72,10 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
             deposit = value;
             TryAddAssociation(value);
             depositTransform = (value == null) ? null : value.transform;
+
+            depositName = (deposit == null) ? "null" : deposit.gameObject.name;
+
+
         }
     }
 
@@ -66,7 +93,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         GetComponent<ResourceBank>().myResources = new Resources(0);
     }
 
-    void FixedUpdate()
+    async void Update()
     {
         switch (state)
         {
@@ -77,25 +104,21 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
                 Move(depositTransform);
                 break;
             case WorkerState.Idling:
-                Idle();
+                await Idle();
                 break;
             default:
                 break;
         }
     }
 
-    void Idle()
+    async Task Idle()
     {
 
         myRigidbody.velocity = Vector2.zero;
-        if (IsCarrying())
+        if (idleTimer < 0)
         {
-            SetClosestDeposit();
-        }
-        else if (idleTimer < 0)
-        {
-            SetNewAssignment();
-            idleTimer = idleTryNewAssignmentTime * (Random.Range(0.2f, 1f));
+            await SetNewAssignment();
+            idleTimer = idleTryNewAssignmentTime;
         }
         else
         {
@@ -114,12 +137,12 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         myRigidbody.velocity = moveSpeed * (destination.position - myTransform.position).normalized;
     }
 
-    public void Assign(IAssignable assignable)
+    public async Task Assign(IAssignable assignable)
     {
         if (assignable == Assignment) return;
 
         Assignment = assignable;
-        SetDepositAndWithdraw(Assignment);
+        await SetDepositAndWithdraw(Assignment);
 
         if (IsCarrying())
         {
@@ -131,14 +154,14 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         }
     }
 
-    void SetDepositAndWithdraw(IAssignable assignable)
+    async Task SetDepositAndWithdraw(IAssignable assignable)
     {
 
         if (assignable.gameObject.TryGetComponent(out Depositable temp1))
         {
             Deposit = temp1;
 
-            SetClosestWithdraw();
+            await SetClosestWithdraw();
 
         }
         else if (assignable.gameObject.TryGetComponent(out Withdrawable temp2))
@@ -146,17 +169,17 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
             Withdraw = temp2;
 
-            SetClosestDeposit();
+            await SetClosestDeposit();
         }
     }
 
-    void SetClosestWithdraw()
+    async Task SetClosestWithdraw()
     {
         ResourceBank bank;
 
         Withdraw = null;
 
-        bank = bankManager.GetClosest<Withdrawable>(myTransform, GetResourcesSought(false));
+        bank = await bankManager.GetClosest<Withdrawable>(this, await GetResourcesSought(false));
 
         if (bank != null)
         {
@@ -166,18 +189,18 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         }
         else
         {
-            SetNewAssignment();
+            await SetNewAssignment();
         }
 
     }
 
-    void SetClosestDeposit()
+    async Task SetClosestDeposit()
     {
         ResourceBank bank;
 
         Deposit = null;
 
-        bank = bankManager.GetClosest<Depositable>(myTransform, GetResourcesSought(true));
+        bank = await bankManager.GetClosest<Depositable>(this, await GetResourcesSought(true));
 
         if (bank != null)
         {
@@ -214,45 +237,44 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         return Assignment != null && Assignment.gameObject.TryGetComponent<Depositable>(out _);
     }
 
-    public void Unassign(IAssignable assignable)
-    {
 
+    async void OnCollisionEnter2D(Collision2D collision)
+    {
+        await PerformDepositOrWithdrawal(collision);
     }
 
-    void OnCollisionEnter2D(Collision2D collision)
-    {
-        PerformDepositOrWithdrawal(collision);
-    }
-
-    void PerformDepositOrWithdrawal(Collision2D collision)
+    async Task PerformDepositOrWithdrawal(Collision2D collision)
     {
         GameObject collidedObject = collision.gameObject;
         if (IsMyTarget(collidedObject))
         {
             if (IsWithdrawing)
             {
-                SettleTransaction(collision.gameObject.GetComponentInChildren<IWithdrawable>(), myDeposit, true);
+                await SettleTransaction(collision.gameObject.GetComponentInChildren<IWithdrawable>(), myDeposit, true);
                 state = WorkerState.ToDeposit;
                 if (IsAssignmentWithdrawable())
                 {
-                    SetClosestDeposit();
+                    if (await AreWithdrawAndDepositIncompatible())
+                    {
+                        await SetClosestDeposit();
+                    }
                     if (Deposit == null)
                     {
-                        SetNewAssignment();
+                        await SetNewAssignment();
                     }
                 }
             }
             else
             {
-                SettleTransaction(myWithdraw, collision.gameObject.GetComponent<IDepositable>(), false);
+                await SettleTransaction(myWithdraw, collision.gameObject.GetComponent<IDepositable>(), false);
                 if (IsCarrying())
                 {
-                    SetClosestDeposit();
+                    await SetClosestDeposit();
                     state = WorkerState.ToDeposit;
                 }
                 else if (hasNewAssignment)
                 {
-                    SetDepositAndWithdraw(Assignment);
+                    await SetDepositAndWithdraw(Assignment);
                     hasNewAssignment = false;
                     state = WorkerState.ToWithdraw;
                 }
@@ -261,10 +283,13 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
                     state = WorkerState.ToWithdraw;
                     if (IsAssignmentDepositable())
                     {
-                        SetClosestWithdraw();
+                        if (await AreWithdrawAndDepositIncompatible())
+                        {
+                            await SetClosestWithdraw();
+                        }
                         if (Withdraw == null)
                         {
-                            SetNewAssignment();
+                            await SetNewAssignment();
                         }
                     }
                 }
@@ -287,16 +312,12 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         return myBank.myResources.Weight > 0;
     }
 
-    // when withdrawing for an assigned depositable, make sure to only withdraw resources the depositable will accept
+    // when withdrawing, make sure to only withdraw resources the depositable will accept
     // settle the worker transaction before the other transaction, in case the latter will trigger a new assignment
-    void SettleTransaction(IWithdrawable from, IDepositable to, bool withdrawal)
+    async Task SettleTransaction(IWithdrawable from, IDepositable to, bool withdrawal)
     {
-        Resources requested = from.GetCurrentResources();
-        if (IsAssignmentDepositable())
-        {
-            requested = Deposit.GetAvailableDeposits(requested);
-        }
-        requested = to.GetAvailableDeposits(requested);
+        Resources requested = await Deposit.GetAvailableDeposits(await from.GetCurrentResources());
+        requested = await to.GetAvailableDeposits(requested);
 
         if (withdrawal)
         {
@@ -309,83 +330,72 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
             from.Withdraw(requested);
             to.Deposit(requested);
         }
+
+        Debug.Log(gameObject.name + (withdrawal ? " withdrew from " + from.gameObject.name : "deposited to " + to.gameObject.name));
     }
 
     public void Select()
     {
         myRenderer.color = Color.red;
         myRenderer.sortingOrder = 1;
-
-
     }
 
     public void Deselect()
     {
         myRenderer.color = Color.white;
         myRenderer.sortingOrder = 0;
-
     }
 
-    public Resources GetDisplayData()
+    public async Task<Resources> GetDisplayData()
     {
-        return myWithdraw.GetCurrentResources();
+        return await myWithdraw.GetCurrentResources();
     }
 
-    public void SetNewAssociatable(Associatable calledBy)
+    public async Task SetNewAssociatable(Associatable calledBy)
     {
         if (calledBy.gameObject == Assignment.gameObject)
         {
-            SetNewAssignment();
+            await SetNewAssignment();
         }
         else if (Withdraw != null && calledBy.gameObject == Withdraw.gameObject)
         {
-            SetClosestWithdraw();
-
+            await SetClosestWithdraw();
         }
         else if (Deposit != null && calledBy.gameObject == Deposit.gameObject)
         {
-            SetClosestDeposit();
-
+            await SetClosestDeposit();
         }
-
     }
 
-
-    void SetNewAssignment()
+    async Task<bool> AreWithdrawAndDepositIncompatible()
     {
-        ResourceBank bank = bankManager.GetClosest<ITransactionable>(
-                myTransform,
-                GetResourcesSought(true, true),
-                true
-        );
+        if (Deposit == null || Withdraw == null) return true;
+        return (await Deposit.GetAvailableDeposits(await Withdraw.GetCurrentResources())).Weight == 0;
+    }
 
-        if (bank != null)
+    async Task SetNewAssignment()
+    {
+        Assignment = await bankManager.GetAssignment(this);
+
+        if (Assignment == null)
         {
-            Assignment = bank.GetComponent<IAssignable>();
-        }
-        else
-        {
-            Assignment = null;
             SetIdle();
-            return;
         }
-
-        if (IsCarrying())
+        else if (IsCarrying())
         {
             hasNewAssignment = true;
-            SetClosestDeposit();
+            await SetClosestDeposit();
             state = WorkerState.ToDeposit;
         }
         else
         {
-            SetDepositAndWithdraw(Assignment);
+            await SetDepositAndWithdraw(Assignment);
             state = WorkerState.ToWithdraw;
-
         }
     }
 
 
-    Resources GetResourcesSought(bool isForDeposit, bool isForAssignment = false)
+    async Task<Resources> GetResourcesSought(bool isForDeposit, bool isForAssignment = false)
     {
         if (isForAssignment)
             return Resources.Infinity;
@@ -395,15 +405,16 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         }
         else if (isForDeposit)
         {
-            return Withdraw == null ? new Resources() : Withdraw.GetCurrentResources();
+            return Withdraw == null ? new Resources() : await Withdraw.GetCurrentResources();
         }
         else
         {
-            return Deposit == null ? new Resources() : Deposit.GetAvailableDeposits(Resources.Infinity);
+            return Deposit == null ? new Resources() : await Deposit.GetAvailableDeposits(Resources.Infinity);
         }
     }
 
-    void SetIdle() {
+    void SetIdle()
+    {
         state = WorkerState.Idling;
         Deposit = null;
         Withdraw = null;

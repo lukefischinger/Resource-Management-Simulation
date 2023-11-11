@@ -4,14 +4,11 @@ using UnityEngine;
 public class Associatable : MonoBehaviour
 {
     public int Count { get; private set; }
-    public int MaxCount { get; private set; } = 20;
+    public int MaxCount { get; private set; } = 2;
 
 
     public List<ITransporter> Associates { get; private set; } = new List<ITransporter>();
 
-    public List<string> AssociatesNames = new List<string>();
-
-    public int count;
     public bool AtCapacity => Count >= MaxCount;
 
     List<ITransporter> toRemove = new List<ITransporter>(),
@@ -35,33 +32,25 @@ public class Associatable : MonoBehaviour
     {
         if (toRemove.Count > 0)
         {
-            foreach (ITransporter t in toRemove)
+            for (int i = 0; i < toRemove.Count; i++)
             {
-                if (!Associates.Contains(t)) continue;
+                if (!Associates.Contains(toRemove[i])) continue;
 
-                Associates.Remove(t);
+                Associates.Remove(toRemove[i]);
             }
             toRemove.Clear();
         }
 
         if (toAdd.Count > 0)
         {
-            foreach (ITransporter t in toAdd)
+            for (int i = 0; i < toAdd.Count; i++)
             {
-                if (Associates.Contains(t)) continue;
+                if (Associates.Contains(toAdd[i])) continue;
 
-                Associates.Add(t);
+                Associates.Add(toAdd[i]);
             }
             toAdd.Clear();
         }
-
-        AssociatesNames.Clear();
-        foreach (ITransporter assoc in Associates)
-        {
-            AssociatesNames.Add(assoc.gameObject.name);
-        }
-        count = Count;
-
     }
 
     // called only during physics step, when resources are exchanged between Banks

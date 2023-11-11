@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 [RequireComponent(typeof(Depositable), typeof(Withdrawable))]
@@ -30,9 +31,9 @@ public class ResourceStorage : MonoBehaviour, ISelectable
 		myRenderer.color = Color.white;
 	}
 
-	public Resources GetDisplayData()
+	public async Task<Resources> GetDisplayData()
 	{
-		return withdraw.GetCurrentResources();
+		return await withdraw.GetCurrentResources();
 	}
 
 	public void Select()

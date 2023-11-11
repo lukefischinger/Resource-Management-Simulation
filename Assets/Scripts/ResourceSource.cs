@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 [RequireComponent(typeof(Withdrawable), typeof(Associatable))]
@@ -11,6 +12,8 @@ public class ResourceSource : MonoBehaviour, IAssignable
     SpriteRenderer myRenderer;
     Associatable associatable;
     ResourceBank resourceBank;
+
+    public int Priority { get; private set; } = 0;
 
     public void BeAssigned(ITransporter transporter)
     {
@@ -27,9 +30,9 @@ public class ResourceSource : MonoBehaviour, IAssignable
         myRenderer.color = Color.white;
     }
 
-    public Resources GetDisplayData()
+    public async Task<Resources> GetDisplayData()
     {
-        return withdraw.GetCurrentResources();
+        return await withdraw.GetCurrentResources();
     }
 
     public void Select()
@@ -44,6 +47,14 @@ public class ResourceSource : MonoBehaviour, IAssignable
         associatable = GetComponent<Associatable>();
         resourceBank = GetComponent<ResourceBank>();
         resourceBank.Initialize(startingResources, startingQuantities);
+
+        foreach (Resource r in resourceBank.myResources.ToList())
+        {
+            if ((int)r > Priority)
+            {
+                Priority = (int)r;
+            }
+        }
     }
 
     void OnEnable()
@@ -55,4 +66,6 @@ public class ResourceSource : MonoBehaviour, IAssignable
     {
         resourceBank.Empty -= associatable.EndAllAssociations;
     }
+
+   
 }

@@ -1,11 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
-using Unity.VisualScripting;
 using UnityEngine;
 
-public class ResourceBank : MonoBehaviour, IComparer<ResourceBank>
+public class ResourceBank : MonoBehaviour
 {
 
     public Resources myResources = new Resources();
@@ -45,12 +42,5 @@ public class ResourceBank : MonoBehaviour, IComparer<ResourceBank>
         return myResources.Contains(resource);
     }
 
-    public int Compare(ResourceBank x, ResourceBank y)
-    {
-        IAssignable xA = x.GetComponent<IAssignable>(),
-        yA = y.GetComponent<IAssignable>();
-
-        // processors > sources
-    }
 }
 

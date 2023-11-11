@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -62,7 +63,7 @@ public class ObjectSelector : MonoBehaviour
 
 		if (hit.collider != null)
 		{
-			ISelectable selectable = hit.collider.GetComponent<ISelectable>();
+			ISelectable selectable = hit.collider.GetComponentInParent<ISelectable>();
 			if (selectable != null)
 			{
 				if (!AreWorkersSelected())
@@ -99,7 +100,7 @@ public class ObjectSelector : MonoBehaviour
 
 	}
 
-	void EndClick(InputAction.CallbackContext context)
+	async void EndClick(InputAction.CallbackContext context)
 	{
 		if (AreWorkersSelected() && IsTempSelectionOneAssignable())
 		{
@@ -111,7 +112,11 @@ public class ObjectSelector : MonoBehaviour
 		tempSelected.Clear();
 		box.enabled = false;
 		line.enabled = false;
-	}
+		if (selected.Count > 0)
+		{
+			CreateDisplayList(selected.Last().gameObject.name, (await selected.Last().GetDisplayData()).Package);
+		}
+    }
 
 	bool AreWorkersSelected()
 	{
@@ -175,7 +180,7 @@ public class ObjectSelector : MonoBehaviour
 	}
 
 
-	void FixedUpdate()
+	async void FixedUpdate()
 	{
 		if (box.enabled)
 		{
@@ -183,7 +188,7 @@ public class ObjectSelector : MonoBehaviour
 		}
 
 		if (selected.Count > 0)
-			CreateDisplayList(selected.Last().gameObject.name, selected.Last().GetDisplayData().Package);
+			CreateDisplayList(selected.Last().gameObject.name, (await selected.Last().GetDisplayData()).Package);
 
 	}
 

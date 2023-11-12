@@ -38,19 +38,17 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
 
     public void Add(ResourceBank bank)
     {
-        if (bank.TryGetComponent(out IAssignable assignment))
+        if (bank.TryGetComponent(out IAssignable assignment) && !assignments.Contains(assignment))
         {
-            if (!assignments.Contains(assignment))
+            assignments.Add(assignment);
+            if (assignment.gameObject.TryGetComponent(out ResourceSource source))
             {
-                assignments.Add(assignment);
+                nonAssignments.Add(source.GetComponent<ResourceBank>());
             }
         }
-        else
-        {
-            if (!nonAssignments.Contains(bank))
-            {
-                nonAssignments.Add(bank);
-            }
+        else if (!bank.TryGetComponent<Worker>(out _) && !nonAssignments.Contains(bank))
+        { 
+            nonAssignments.Add(bank);
         }
     }
 
@@ -63,7 +61,7 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
             {
                 continue;
             }
-            else if (assignments[i].gameObject.TryGetComponent(out Depositable d) && !(await IsValidAssignableDeposit(worker, d)))
+            else if (assignments[i].gameObject.TryGetComponent(out Depositable d) && !(await IsValidAssignableDeposit(d)))
             {
                 continue;
             }
@@ -80,14 +78,14 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     }
 
 
-    public async Task<ResourceBank> GetClosest<ITransactionable>(Worker worker, Resources resources)
+    public async Task<ResourceBank> GetClosest<ITransactionable>(Transform transform, Resources resources)
     {
         ResourceBank closest = null;
         float closestDistance = Mathf.Infinity;
 
         ITransactionable curr;
         float currWeight, currDistance;
-        Vector3 workerPosition = worker.transform.position;
+        Vector3 basePosition = transform.position;
 
         for (int i = 0; i < nonAssignments.Count; i++)
         {
@@ -107,7 +105,7 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
             }
             else continue;
 
-            currDistance = (nonAssignments[i].transform.position - workerPosition).magnitude;
+            currDistance = (nonAssignments[i].transform.position - basePosition).magnitude;
             if (currWeight > 0 && currDistance <= closestDistance)
             {
                 closest = nonAssignments[i];
@@ -119,9 +117,8 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     }
 
 
-    public async Task<bool> IsValidAssignableDeposit(Worker worker, Depositable assignable)
+    public async Task<bool> IsValidAssignableDeposit(Depositable assignable)
     {
-        //if ((await assignable.GetAvailableDeposits(worker.GetComponent<Withdrawable>().GetCurrentResources())).Weight > 0) return true;
 
         for (int i = 0; i < nonAssignments.Count; i++)
         {

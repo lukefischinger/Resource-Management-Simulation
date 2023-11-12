@@ -50,8 +50,8 @@ public class Buildable : MonoBehaviour
 	{
 		GameObject buildable = Instantiate(buildableData.prefab);
 		buildable.transform.position = myTransform.position;
-		gameObject.SetActive(false);
-		bankManager.Add(buildable.GetComponent<ResourceBank>());
+        bankManager.Add(buildable.GetComponent<ResourceBank>());
+        gameObject.SetActive(false);
 	}
 
 	void OnEnable()

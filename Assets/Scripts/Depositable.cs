@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using UnityEngine;
 
 [RequireComponent(typeof(ResourceBank))]
@@ -23,9 +22,9 @@ public class Depositable : MonoBehaviour, IDepositable
         bank.Initialize(resources, quantities);
     }
 
-    public async Task<Resources> GetAvailableDeposits(Resources attempt)
+    public Resources GetAvailableDeposits(Resources attempt)
     {
-        return await ITransactionable.GetMaxTransaction(
+        return ITransactionable.GetMaxTransaction(
             attempt,
             new Resources(bank.myResources.ToList(), Mathf.Infinity),
             Mathf.Infinity,

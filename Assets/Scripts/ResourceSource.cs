@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 
 [RequireComponent(typeof(Withdrawable), typeof(Associatable))]
@@ -30,9 +29,9 @@ public class ResourceSource : MonoBehaviour, IAssignable
         myRenderer.color = Color.white;
     }
 
-    public async Task<Resources> GetDisplayData()
+    public Resources GetDisplayData()
     {
-        return await withdraw.GetCurrentResources();
+        return withdraw.GetCurrentResources();
     }
 
     public void Select()
@@ -67,5 +66,5 @@ public class ResourceSource : MonoBehaviour, IAssignable
         resourceBank.Empty -= associatable.EndAllAssociations;
     }
 
-   
+
 }

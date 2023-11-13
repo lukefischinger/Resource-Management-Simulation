@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using UnityEngine;
 
 public class ResourceProcessor : MonoBehaviour, IAssignable
@@ -24,7 +23,7 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
         myRenderer.color = baseColor;
     }
 
-    public async Task<Resources> GetDisplayData()
+    public Resources GetDisplayData()
     {
         List<Resource> list = inBank.myResources.ToList();
         list.AddRange(outBank.myResources.ToList());
@@ -104,5 +103,5 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
         outBank.Empty -= outAssociatable.EndAllAssociations;
     }
 
-   
+
 }

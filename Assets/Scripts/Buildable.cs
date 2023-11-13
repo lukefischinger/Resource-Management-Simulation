@@ -38,12 +38,16 @@ public class Buildable : MonoBehaviour
 		{
 			Build();
 		}
+
+		if(input.Cancel.triggered) {
+			gameObject.SetActive(false);
+		}
 	}
 
 	void Move()
 	{
 		Vector3 xyz = cam.ScreenToWorldPoint(input.Pointer);
-		myTransform.position = new Vector3(xyz.x, xyz.y, 0);
+		myTransform.position = new Vector3(Mathf.Floor(xyz.x) + 0.5f, Mathf.Floor(xyz.y) + 0.5f, 0);
 	}
 
 	void Build()
@@ -51,7 +55,6 @@ public class Buildable : MonoBehaviour
 		GameObject buildable = Instantiate(buildableData.prefab);
 		buildable.transform.position = myTransform.position;
         bankManager.Add(buildable.GetComponent<ResourceBank>());
-        gameObject.SetActive(false);
 	}
 
 	void OnEnable()

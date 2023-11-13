@@ -4,7 +4,7 @@ using UnityEngine;
 public class Associatable : MonoBehaviour
 {
     public int Count { get; private set; }
-    public int MaxCount { get; private set; } = 100;
+    public int MaxCount { get; private set; } = 5;
 
 
     public List<ITransporter> Associates { get; private set; } = new List<ITransporter>();

@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using UnityEngine;
 
 public interface ISelectable
 {
     public void Select();
     public void Deselect();
-    public Task<Resources> GetDisplayData();
+    public Resources GetDisplayData();
     public Transform transform { get; }
     public GameObject gameObject { get; }
 
@@ -16,7 +15,7 @@ public interface ISelectable
 
 public interface ITransactionable
 {
-    public async static Task<Resources> GetMaxTransaction(Resources fromLimits, Resources toLimits, float fromLimit, float toLimit)
+    public static Resources GetMaxTransaction(Resources fromLimits, Resources toLimits, float fromLimit, float toLimit)
     {
         List<Resource> intersection = fromLimits.ToList().Intersect(toLimits.ToList()).ToList();
         Resources result = new Resources(intersection, 0f);
@@ -41,23 +40,23 @@ public interface ITransactionable
 public interface IDepositable : ITransactionable
 {
     public Resources Deposit(Resources resources); // returns overflow
-    public Task<Resources> GetAvailableDeposits(Resources attempt);
+    public Resources GetAvailableDeposits(Resources attempt);
 }
 
 public interface IWithdrawable : ITransactionable
 {
     public Resources Withdraw(Resources resources);
-    public Task<Resources> GetAvailableWithdrawals(Resources attempt);
-    public Task<Resources> GetCurrentResources();
+    public Resources GetAvailableWithdrawals(Resources attempt);
+    public Resources GetCurrentResources();
 }
 
 public interface ITransporter
 {
-    public Task Assign(IAssignable assignment);
+    public void Assign(IAssignable assignment);
 
-    public Task SetNewAssociatable(Associatable calledBy);
+    public void SetNewAssociatable(Associatable calledBy);
 
-    public GameObject gameObject{ get; }
+    public GameObject gameObject { get; }
 }
 
 

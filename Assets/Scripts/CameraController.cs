@@ -1,3 +1,4 @@
+using Cinemachine;
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -5,71 +6,71 @@ using UnityEngine.InputSystem;
 public class CameraController : MonoBehaviour
 {
 
-	[SerializeField] PlayerInputController input;
+    [SerializeField] PlayerInputController input;
 
-	const float maxOrtho = 40, minOrtho = 5;
+    const float maxOrtho = 25, minOrtho = 5;
 
-	Transform myTransform;
+    Transform myTransform;
 
-	Camera cam;
-	private float cameraSpeed = 2f;
-	bool moving = false;
-	Vector3 movementDirection = Vector3.zero;
+    CinemachineVirtualCamera cam;
+    private float cameraSpeed = 2f;
+    bool moving = false;
+    Vector3 movementDirection = Vector3.zero;
 
-	void Awake()
-	{
-		myTransform = transform;
-		cam = GetComponentInChildren<Camera>();
-	}
+    void Awake()
+    {
+        myTransform = transform;
+        cam = GetComponentInChildren<CinemachineVirtualCamera>();
+    }
 
-	void OnEnable()
-	{
+    void OnEnable()
+    {
 
-		input.Scroll.performed += Zoom;
-		input.Move.performed += StartMove;
-		input.Move.canceled += StopMove;
+        input.Scroll.performed += Zoom;
+        input.Move.performed += StartMove;
+        input.Move.canceled += StopMove;
 
-		moving = false;
-	}
+        moving = false;
+    }
 
-	void OnDisable()
-	{
-		input.Scroll.performed -= Zoom;
-		input.Move.performed -= StartMove;
-		input.Move.canceled -= StopMove;
+    void OnDisable()
+    {
+        input.Scroll.performed -= Zoom;
+        input.Move.performed -= StartMove;
+        input.Move.canceled -= StopMove;
 
-	}
+    }
 
 
 
-	void Update()
-	{
-		if (moving)
-		{
-			Move();
-		}
-	}
+    void Update()
+    {
+        if (moving)
+        {
+            Move();
+        }
+    }
 
-	void Move()
-	{
-		myTransform.position = myTransform.position + cameraSpeed * cam.orthographicSize * Time.deltaTime * movementDirection;
-	}
+    void Move()
+    {
+        myTransform.position = myTransform.position + cameraSpeed * cam.m_Lens.OrthographicSize * Time.deltaTime * movementDirection;
+    }
 
-	void StartMove(InputAction.CallbackContext context)
-	{
-		movementDirection = context.ReadValue<Vector2>();
-		moving = true;
-	}
+    void StartMove(InputAction.CallbackContext context)
+    {
+        movementDirection = context.ReadValue<Vector2>();
+        moving = true;
+    }
 
-	private void StopMove(InputAction.CallbackContext context)
-	{
-		moving = false;
-	}
+    private void StopMove(InputAction.CallbackContext context)
+    {
+        moving = false;
+    }
 
-	void Zoom(InputAction.CallbackContext context)
-	{
-		cam.orthographicSize = Mathf.Clamp(cam.orthographicSize - context.action.ReadValue<float>() / 100f, minOrtho, maxOrtho);
-	}
+    void Zoom(InputAction.CallbackContext context)
+    {
+        cam.m_Lens.OrthographicSize = Mathf.Clamp(cam.m_Lens.OrthographicSize - context.action.ReadValue<float>() / 100f, minOrtho, maxOrtho);
+    }
 
 
 }

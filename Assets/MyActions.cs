@@ -64,6 +64,15 @@ namespace UnityEngine.InputSystem
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""Cancel"",
+                    ""type"": ""Button"",
+                    ""id"": ""0740f4b7-9aec-419d-8a08-8b9a77eee9ce"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -295,6 +304,28 @@ namespace UnityEngine.InputSystem
                     ""processors"": """",
                     ""groups"": ""Keyboard&Mouse"",
                     ""action"": ""Scroll"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a07a249d-5ff1-454e-8bf5-d7c811178c91"",
+                    ""path"": ""<Mouse>/rightButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Cancel"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""f99b3a8f-90ad-4792-948e-d5b9ec140dce"",
+                    ""path"": ""<Keyboard>/escape"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": ""Keyboard&Mouse"",
+                    ""action"": ""Cancel"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
                 }
@@ -886,6 +917,7 @@ namespace UnityEngine.InputSystem
             m_Player_Look = m_Player.FindAction("Look", throwIfNotFound: true);
             m_Player_Click = m_Player.FindAction("Click", throwIfNotFound: true);
             m_Player_Scroll = m_Player.FindAction("Scroll", throwIfNotFound: true);
+            m_Player_Cancel = m_Player.FindAction("Cancel", throwIfNotFound: true);
             // UI
             m_UI = asset.FindActionMap("UI", throwIfNotFound: true);
             m_UI_Navigate = m_UI.FindAction("Navigate", throwIfNotFound: true);
@@ -961,6 +993,7 @@ namespace UnityEngine.InputSystem
         private readonly InputAction m_Player_Look;
         private readonly InputAction m_Player_Click;
         private readonly InputAction m_Player_Scroll;
+        private readonly InputAction m_Player_Cancel;
         public struct PlayerActions
         {
             private @MyActions m_Wrapper;
@@ -969,6 +1002,7 @@ namespace UnityEngine.InputSystem
             public InputAction @Look => m_Wrapper.m_Player_Look;
             public InputAction @Click => m_Wrapper.m_Player_Click;
             public InputAction @Scroll => m_Wrapper.m_Player_Scroll;
+            public InputAction @Cancel => m_Wrapper.m_Player_Cancel;
             public InputActionMap Get() { return m_Wrapper.m_Player; }
             public void Enable() { Get().Enable(); }
             public void Disable() { Get().Disable(); }
@@ -990,6 +1024,9 @@ namespace UnityEngine.InputSystem
                     @Scroll.started -= m_Wrapper.m_PlayerActionsCallbackInterface.OnScroll;
                     @Scroll.performed -= m_Wrapper.m_PlayerActionsCallbackInterface.OnScroll;
                     @Scroll.canceled -= m_Wrapper.m_PlayerActionsCallbackInterface.OnScroll;
+                    @Cancel.started -= m_Wrapper.m_PlayerActionsCallbackInterface.OnCancel;
+                    @Cancel.performed -= m_Wrapper.m_PlayerActionsCallbackInterface.OnCancel;
+                    @Cancel.canceled -= m_Wrapper.m_PlayerActionsCallbackInterface.OnCancel;
                 }
                 m_Wrapper.m_PlayerActionsCallbackInterface = instance;
                 if (instance != null)
@@ -1006,6 +1043,9 @@ namespace UnityEngine.InputSystem
                     @Scroll.started += instance.OnScroll;
                     @Scroll.performed += instance.OnScroll;
                     @Scroll.canceled += instance.OnScroll;
+                    @Cancel.started += instance.OnCancel;
+                    @Cancel.performed += instance.OnCancel;
+                    @Cancel.canceled += instance.OnCancel;
                 }
             }
         }
@@ -1166,6 +1206,7 @@ namespace UnityEngine.InputSystem
             void OnLook(InputAction.CallbackContext context);
             void OnClick(InputAction.CallbackContext context);
             void OnScroll(InputAction.CallbackContext context);
+            void OnCancel(InputAction.CallbackContext context);
         }
         public interface IUIActions
         {

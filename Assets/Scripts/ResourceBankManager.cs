@@ -1,20 +1,25 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 
 public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
 {
     List<ResourceBank> nonAssignments = new List<ResourceBank>();
     List<IAssignable> assignments = new List<IAssignable>();
+    List<Worker> workers = new List<Worker>();
+
+    public BuildingGraph buildingGraph { get; private set; }
 
     void Start()
     {
+        buildingGraph = new BuildingGraph(100);
+
 
         foreach (var bank in FindObjectsOfType<ResourceBank>())
         {
-            if (bank.TryGetComponent<Worker>(out _))
+            Add(bank);
+            if (bank.TryGetComponent(out Worker worker))
             {
-                continue;
+                workers.Add(worker);
             }
             else if (bank.TryGetComponent(out IAssignable assignment))
             {
@@ -33,27 +38,38 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
 
         assignments.Sort(Compare);
 
+
     }
 
 
     public void Add(ResourceBank bank)
     {
-        if (bank.TryGetComponent(out IAssignable assignment) && !assignments.Contains(assignment))
+        if (bank.TryGetComponent(out Worker worker) && !workers.Contains(worker))
+        {
+            workers.Add(worker);
+        }
+        else if (bank.TryGetComponent(out IAssignable assignment) && !assignments.Contains(assignment))
         {
             assignments.Add(assignment);
+
             if (assignment.gameObject.TryGetComponent(out ResourceSource source))
             {
                 nonAssignments.Add(source.GetComponent<ResourceBank>());
             }
+            buildingGraph.RemoveVertex(buildingGraph.Dimension * (int)bank.transform.position.x + (int)bank.transform.position.y);
+
         }
-        else if (!bank.TryGetComponent<Worker>(out _) && !nonAssignments.Contains(bank))
-        { 
+        else if (!nonAssignments.Contains(bank))
+        {
             nonAssignments.Add(bank);
+            buildingGraph.RemoveVertex(buildingGraph.Dimension * (int)bank.transform.position.x + (int)bank.transform.position.y);
+
         }
+
     }
 
 
-    public async Task<IAssignable> GetAssignment(Worker worker)
+    public IAssignable GetAssignment(Worker worker)
     {
         for (int i = 0; i < assignments.Count; i++)
         {
@@ -61,11 +77,11 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
             {
                 continue;
             }
-            else if (assignments[i].gameObject.TryGetComponent(out Depositable d) && !(await IsValidAssignableDeposit(d)))
+            else if (assignments[i].gameObject.TryGetComponent(out Depositable d) && !(IsValidAssignableDeposit(d)))
             {
                 continue;
             }
-            else if (assignments[i].gameObject.TryGetComponent(out Withdrawable w) && (await w.GetCurrentResources()).Weight == 0)
+            else if (assignments[i].gameObject.TryGetComponent(out Withdrawable w) && (w.GetCurrentResources()).Weight == 0)
             {
                 continue;
             }
@@ -78,7 +94,7 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     }
 
 
-    public async Task<ResourceBank> GetClosest<ITransactionable>(Transform transform, Resources resources)
+    public ResourceBank GetClosest<ITransactionable>(Transform transform, Resources resources)
     {
         ResourceBank closest = null;
         float closestDistance = Mathf.Infinity;
@@ -97,11 +113,11 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
 
             if (curr is IDepositable)
             {
-                currWeight = (await (curr as IDepositable).GetAvailableDeposits(resources)).Weight;
+                currWeight = ((curr as IDepositable).GetAvailableDeposits(resources)).Weight;
             }
             else if (curr is IWithdrawable)
             {
-                currWeight = (await (curr as IWithdrawable).GetAvailableWithdrawals(resources)).Weight;
+                currWeight = ((curr as IWithdrawable).GetAvailableWithdrawals(resources)).Weight;
             }
             else continue;
 
@@ -117,7 +133,7 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     }
 
 
-    public async Task<bool> IsValidAssignableDeposit(Depositable assignable)
+    public bool IsValidAssignableDeposit(Depositable assignable)
     {
 
         for (int i = 0; i < nonAssignments.Count; i++)
@@ -125,7 +141,7 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
             if (
                 nonAssignments[i].TryGetComponent(out Withdrawable withdrawable) &&
                 !nonAssignments[i].GetComponent<Associatable>().AtCapacity &&
-                (await assignable.GetAvailableDeposits(await withdrawable.GetCurrentResources())).Weight > 0
+                (assignable.GetAvailableDeposits(withdrawable.GetCurrentResources())).Weight > 0
             )
             {
                 return true;

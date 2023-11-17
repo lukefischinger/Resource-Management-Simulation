@@ -5,45 +5,70 @@ using UnityEngine;
 public class BuildableManager : MonoBehaviour
 {
 
-	[SerializeField] List<BuildableData> prefabs;
+    [SerializeField] List<BuildableData> prefabs;
 
-	public List<BuildableData> Prefabs
-	{
-		get
-		{
-			return prefabs;
-		}
-		private set
-		{
-			prefabs = value;
-		}
-	}
 
-	public BuildableData GetBuildable(string name)
-	{
-		foreach (var data in Prefabs)
-		{
-			if (data.name == name)
-			{				
-				return data;
-			}
-		}
+    Dictionary<string, ProcessorResources> processorResources = new Dictionary<string, ProcessorResources>()
+    {
+        {"Blast Furnce",  new ProcessorResources(Resource.IronOre, Resource.PigIron)},
+        {"Steel Refinery", new ProcessorResources(Resource.PigIron, Resource.Steel) }
+    };
 
-		return null;
-	}
+
+    public struct ProcessorResources
+    {
+        public Resource input;
+        public Resource output;
+
+        public ProcessorResources(Resource input, Resource output)
+        {
+            this.input = input;
+            this.output = output;
+        }
+    }
+
+
+
+
+    public List<BuildableData> Prefabs
+    {
+        get
+        {
+            return prefabs;
+        }
+        private set
+        {
+            prefabs = value;
+        }
+    }
+
+    public BuildableData GetBuildable(string name)
+    {
+        foreach (var data in Prefabs)
+        {
+            if (data.name == name)
+            {
+                return data;
+            }
+        }
+
+        return null;
+    }
 }
 
 [Serializable]
 public class BuildableData
 {
-	public string name;
-	public GameObject prefab;
+    public string name;
+    public GameObject prefab;
+    public Sprite sprite;
 
-	public BuildableData(GameObject prefab, string name = "")
-	{
-		this.prefab = prefab;
-		this.name = (name == "") ? prefab.name : name;
-	}
+    public BuildableData(GameObject prefab, string name = "", Sprite sprite = null)
+    {
+        this.prefab = prefab;
+        this.name = (name == "") ? prefab.name : name;
+        this.sprite = sprite;
+    }
 
 
 }

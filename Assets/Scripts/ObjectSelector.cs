@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.VisualScripting;
@@ -24,6 +25,8 @@ public class ObjectSelector : MonoBehaviour
     LineRenderer line;
     Transform myTransform;
     Camera cam;
+    VisualElement root, resourceContainer;
+    ISelectable displayedObject;
 
     void Awake()
     {
@@ -40,12 +43,14 @@ public class ObjectSelector : MonoBehaviour
         input.Click.canceled += EndClick;
         box.enabled = false;
         line.enabled = false;
+        SubscribeToDisplayAction();
     }
 
     void OnDisable()
     {
         input.Click.started -= StartClick;
         input.Click.canceled -= EndClick;
+        UnsubscribeFromDisplayAction();
     }
 
     void StartClick(InputAction.CallbackContext context)
@@ -113,7 +118,8 @@ public class ObjectSelector : MonoBehaviour
         line.enabled = false;
         if (selected.Count > 0)
         {
-            CreateDisplayList(selected.Last().gameObject.name, (selected.Last().GetDisplayData()).Package);
+            displayedObject = selected.First();
+            CreateDisplayList(displayedObject.gameObject, (displayedObject.GetDisplayData()).Package);
         }
     }
 
@@ -185,10 +191,6 @@ public class ObjectSelector : MonoBehaviour
         {
             DragClick();
         }
-
-        if (selected.Count > 0)
-            CreateDisplayList(selected.Last().gameObject.name, (selected.Last().GetDisplayData()).Package);
-
     }
 
     void DeselectAll()
@@ -199,8 +201,8 @@ public class ObjectSelector : MonoBehaviour
         {
             obj.Deselect();
         }
-        selected.Clear();
         HideDisplayList();
+        selected.Clear();
     }
 
     void Assign(IAssignable assignment)
@@ -208,7 +210,7 @@ public class ObjectSelector : MonoBehaviour
         foreach (ISelectable item in selected)
         {
             Worker w = item.gameObject.GetComponent<Worker>();
-            if (w != null)
+            if (w != null && !assignment.gameObject.GetComponent<Associatable>().AtCapacity)
             {
                 w.Assign(assignment);
             }
@@ -217,20 +219,25 @@ public class ObjectSelector : MonoBehaviour
         DeselectAll();
     }
 
-    void CreateDisplayList(string name, Dictionary<Resource, float> dict)
+    void CreateDisplayList(GameObject selectedObj, Dictionary<Resource, float> dict)
     {
         displayDoc.gameObject.SetActive(true);
+        SubscribeToDisplayAction();
 
-        VisualElement selectedObject = displayDoc.rootVisualElement.Q("selected-object");
+
+        root = displayDoc.rootVisualElement;
+        VisualElement selectedObject = root.Q("selected-object");
         Label title = selectedObject.Q<Label>("object-name");
-        title.text = name;
+        title.text = selectedObj.name;
 
-        VisualElement resourceContainer = selectedObject.Q("resources");
+
+        resourceContainer = selectedObject.Q("resources");
         resourceContainer.Clear();
 
         foreach (var elt in dict)
         {
             VisualElement item = listEntryTemplate.Instantiate();
+            item.name = elt.Key.ToString();
             item.Q<Label>("resource").text = elt.Key.ToString();
             item.Q<Label>("quantity").text = elt.Value.ToString();
             resourceContainer.Add(item);
@@ -238,11 +245,25 @@ public class ObjectSelector : MonoBehaviour
 
     }
 
+    void UpdateDisplayList()
+    {
+        VisualElement item;
+        foreach (var kvp in selected.Last().GetDisplayData().Package)
+        {
+            item = resourceContainer.Q<VisualElement>(kvp.Key.ToString());
+            item.Q<Label>("quantity").text = kvp.Value.ToString();
+        }
+    }
+
 
     void HideDisplayList()
     {
+        UnsubscribeFromDisplayAction();
+
         displayDoc.rootVisualElement.Q("resources").Clear();
         displayDoc.rootVisualElement.Q<Label>("object-name").text = "";
+
+        displayedObject = null;
     }
 
 
@@ -250,6 +271,27 @@ public class ObjectSelector : MonoBehaviour
     Vector2 PointerPosition(bool adjusted = true)
     {
         return cam.ScreenToWorldPoint(input.Pointer) - (adjusted ? myTransform.position : Vector2.zero);
+    }
+
+
+    void UnsubscribeFromDisplayAction()
+    {
+        if (displayedObject == null) return;
+
+        foreach (var bank in displayedObject.gameObject.GetComponentsInChildren<ResourceBank>())
+        {
+            bank.Changed -= UpdateDisplayList;
+        }
+    }
+
+    void SubscribeToDisplayAction()
+    {
+        if (displayedObject == null) return;
+
+        foreach (var bank in displayedObject.gameObject.GetComponentsInChildren<ResourceBank>())
+        {
+            bank.Changed += UpdateDisplayList;
+        }
     }
 
 

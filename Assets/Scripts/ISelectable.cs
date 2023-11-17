@@ -1,3 +1,4 @@
+using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,21 +18,34 @@ public interface ITransactionable
 {
     public static Resources GetMaxTransaction(Resources fromLimits, Resources toLimits, float fromLimit, float toLimit)
     {
-        List<Resource> intersection = fromLimits.ToList().Intersect(toLimits.ToList()).ToList();
-        Resources result = new Resources(intersection, 0f);
-        float totalLimit = Mathf.Min(fromLimit, toLimit);
 
-        foreach (var resource in result.ToList())
+        Dictionary<Resource, float> result = new Dictionary<Resource, float>();
+
+        float totalLimit = Mathf.Min(fromLimit, toLimit);
+        float currentWeight = 0;
+        foreach (var kv in fromLimits.Package)
         {
-            result.Add(resource, Mathf.Min(fromLimits.Get(resource), toLimits.Get(resource), totalLimit));
-            if (result.Weight > totalLimit)
+            if (kv.Value == 0) continue;
+
+            if (toLimits.Package.ContainsKey(kv.Key))
             {
-                result.Remove(resource, (result.Weight - totalLimit) / ResourceWeights.Weight(resource));
-                break;
+                result.Add(kv.Key, Mathf.Min(kv.Value, (totalLimit - currentWeight) / ResourceWeights.Weight(kv.Key)));
+                currentWeight += ResourceWeights.Weight(kv.Key) * result[kv.Key];
+
+                if (currentWeight == totalLimit)
+                {
+                    break;
+                }
+                else if (currentWeight > totalLimit)
+                {
+                    result[kv.Key] -= (currentWeight - totalLimit) / ResourceWeights.Weight(kv.Key);
+                    break;
+                }
             }
         }
 
-        return result;
+
+        return new Resources(result);
     }
 
     public GameObject gameObject { get; }
@@ -53,8 +67,6 @@ public interface IWithdrawable : ITransactionable
 public interface ITransporter
 {
     public void Assign(IAssignable assignment);
-
-    public void SetNewAssociatable(Associatable calledBy);
 
     public GameObject gameObject { get; }
 }

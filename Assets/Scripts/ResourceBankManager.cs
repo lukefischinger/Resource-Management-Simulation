@@ -7,40 +7,76 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     List<IAssignable> assignments = new List<IAssignable>();
     List<Worker> workers = new List<Worker>();
 
-    public BuildingGraph buildingGraph { get; private set; }
+    List<IAssignable> assignmentQueue = new List<IAssignable>();
+    public List<string> assignmentQueueNames = new List<string>();
 
-    void Start()
+    List<Worker> idleWorkerQueue = new List<Worker>();
+    public List<string> idleWorkerQueueNames = new List<string>();
+
+    public BuildingGraph buildingGraph { get; private set; }
+    int dimension = 100;
+    bool removeIntersectingEdges = false;
+
+    const float oldPathRemovalTime = 15f;
+    float oldPathRemovalTimer;
+
+    public const int maxAssignmentsPerFrame = 1;
+    public int assignmentsThisFrame = 0;
+
+    void Awake()
     {
-        buildingGraph = new BuildingGraph(100);
+        buildingGraph = new BuildingGraph(dimension);
 
 
         foreach (var bank in FindObjectsOfType<ResourceBank>())
         {
             Add(bank);
-            if (bank.TryGetComponent(out Worker worker))
-            {
-                workers.Add(worker);
-            }
-            else if (bank.TryGetComponent(out IAssignable assignment))
-            {
-                assignments.Add(assignment);
-                if (assignment.gameObject.TryGetComponent(out ResourceSource source))
-                {
-                    nonAssignments.Add(source.GetComponent<ResourceBank>());
-                }
-            }
-            else
-            {
-                nonAssignments.Add(bank);
-            }
-
         }
 
         assignments.Sort(Compare);
+        removeIntersectingEdges = true;
 
 
     }
 
+
+    void Update()
+    {
+        if (removeIntersectingEdges)
+        {
+            buildingGraph.RemoveIntersectingEdges();
+            removeIntersectingEdges = false;
+
+        }
+
+        if (oldPathRemovalTimer < 0)
+        {
+            buildingGraph.RemoveOldLookupTimes(Time.time);
+            oldPathRemovalTimer = oldPathRemovalTime;
+        }
+        else
+        {
+            oldPathRemovalTimer -= Time.deltaTime;
+        }
+
+        GiveIdleWorkersAssignments();
+
+        idleWorkerQueueNames.Clear();
+        foreach (var idleWorker in idleWorkerQueue)
+        {
+            idleWorkerQueueNames.Add(idleWorker.name);
+        }
+    }
+
+
+
+    public void AddIdleWorker(Worker worker)
+    {
+        if (!idleWorkerQueue.Contains(worker))
+        {
+            idleWorkerQueue.Add(worker);
+        }
+    }
 
     public void Add(ResourceBank bank)
     {
@@ -56,43 +92,87 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
             {
                 nonAssignments.Add(source.GetComponent<ResourceBank>());
             }
-            buildingGraph.RemoveVertex(buildingGraph.Dimension * (int)bank.transform.position.x + (int)bank.transform.position.y);
-
+            buildingGraph.AddAllAdjacentVertices(bank.transform.position, true);
+            removeIntersectingEdges = true;
         }
         else if (!nonAssignments.Contains(bank))
         {
             nonAssignments.Add(bank);
-            buildingGraph.RemoveVertex(buildingGraph.Dimension * (int)bank.transform.position.x + (int)bank.transform.position.y);
-
+            buildingGraph.AddAllAdjacentVertices(bank.transform.position, true);
+            removeIntersectingEdges = true;
         }
-
     }
 
-
-    public IAssignable GetAssignment(Worker worker)
+    bool IsValidAssignment(IAssignable assignment)
     {
-        for (int i = 0; i < assignments.Count; i++)
+        GameObject assignmentObj = assignment.gameObject;
+        if (assignmentObj.GetComponent<Associatable>().AtCapacity)
         {
-            if (assignments[i].gameObject.GetComponent<Associatable>().AtCapacity)
-            {
-                continue;
-            }
-            else if (assignments[i].gameObject.TryGetComponent(out Depositable d) && !(IsValidAssignableDeposit(d)))
-            {
-                continue;
-            }
-            else if (assignments[i].gameObject.TryGetComponent(out Withdrawable w) && (w.GetCurrentResources()).Weight == 0)
-            {
-                continue;
-            }
-            else
-            {
-                return assignments[i];
-            }
+            return false;
         }
-        return null;
+        else if (assignmentObj.TryGetComponent(out Depositable d) && !(IsValidAssignableDeposit(d)))
+        {
+            return false;
+        }
+        else if (assignmentObj.TryGetComponent(out Withdrawable w) && GetClosest<Depositable>(w.transform, w.GetCurrentResources()) == null)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
 
+
+    private void GiveIdleWorkersAssignments()
+    {
+
+        assignmentQueue = new List<IAssignable>(assignments);
+        int count = 0;
+
+        while (assignmentQueue.Count > 0 && !IsValidAssignment(assignmentQueue[0]))
+        {
+            assignmentQueue.RemoveAt(0);
+        }
+
+        while (idleWorkerQueue.Count > 0 && assignmentQueue.Count > 0 && count < maxAssignmentsPerFrame)
+        {
+
+            int closest = ClosestWorker(assignmentQueue[0].transform.position);
+            idleWorkerQueue[closest].SetNewAssignment(assignmentQueue[0]);
+            idleWorkerQueue.RemoveAt(closest);
+            count++;
+
+            while (assignmentQueue.Count > 0 && !IsValidAssignment(assignmentQueue[0]))
+            {
+                assignmentQueue.RemoveAt(0);
+            }
+        }
+        assignmentQueueNames.Clear();
+        foreach (var assignment in assignmentQueue)
+        {
+            assignmentQueueNames.Add(assignment.gameObject.name);
+        }
+    }
+
+    int ClosestWorker(Vector3 position)
+    {
+        int closestIndex = 0;
+        float closestDistance = (position - idleWorkerQueue[0].transform.position).sqrMagnitude;
+        float currDistance;
+        for (int i = 1; i < idleWorkerQueue.Count; i++)
+        {
+            currDistance = (idleWorkerQueue[i].transform.position - position).sqrMagnitude;
+            if (currDistance < closestDistance) {
+                closestIndex = i;
+                closestDistance = currDistance;
+            }
+        }
+
+        return closestIndex;
+
+    }
 
     public ResourceBank GetClosest<ITransactionable>(Transform transform, Resources resources)
     {
@@ -139,8 +219,8 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
         for (int i = 0; i < nonAssignments.Count; i++)
         {
             if (
-                nonAssignments[i].TryGetComponent(out Withdrawable withdrawable) &&
                 !nonAssignments[i].GetComponent<Associatable>().AtCapacity &&
+                nonAssignments[i].TryGetComponent(out Withdrawable withdrawable) &&
                 (assignable.GetAvailableDeposits(withdrawable.GetCurrentResources())).Weight > 0
             )
             {

@@ -1,66 +1,89 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Associatable : MonoBehaviour
 {
     public int Count { get; private set; }
-    public int MaxCount { get; private set; } = 5;
+    public int MaxCount { get; private set; } = 8;
 
-
+    bool isSelected = false;
     public List<ITransporter> Associates { get; private set; } = new List<ITransporter>();
+
+    public List<string> associateNames = new List<string>();
 
     public bool AtCapacity => Count >= MaxCount;
 
-    List<ITransporter> toRemove = new List<ITransporter>(),
-                    toAdd = new List<ITransporter>();
-
     public void AddAssociation(ITransporter associate)
     {
-
-        toAdd.Add(associate);
-        Count++;
+        if (!Associates.Contains(associate))
+        {
+            Associates.Add(associate);
+            if (isSelected)
+            {
+                SelectAssociate(associate);
+            }
+            Count++;
+        }
     }
 
     public void RemoveAssociation(ITransporter associate)
     {
-        toRemove.Add(associate);
-        Count--;
+        if (Associates.Contains(associate))
+        {
+            Associates.Remove(associate);
+            if (isSelected)
+            {
+                DeselectAssociate(associate);
+            }
+            Count--;
+        }
 
     }
 
     private void Update()
     {
-        if (toRemove.Count > 0)
+        associateNames.Clear();
+        foreach (var assoc in Associates)
         {
-            for (int i = 0; i < toRemove.Count; i++)
-            {
-                if (!Associates.Contains(toRemove[i])) continue;
-
-                Associates.Remove(toRemove[i]);
-            }
-            toRemove.Clear();
-        }
-
-        if (toAdd.Count > 0)
-        {
-            for (int i = 0; i < toAdd.Count; i++)
-            {
-                if (Associates.Contains(toAdd[i])) continue;
-
-                Associates.Add(toAdd[i]);
-            }
-            toAdd.Clear();
+            associateNames.Add(assoc.gameObject.name);
         }
     }
 
-    // called only during physics step, when resources are exchanged between Banks
-    public void EndAllAssociations()
+    public void SelectAssociates()
     {
-        string output = gameObject.name + ": ";
+        isSelected = true;
         foreach (var associate in Associates)
         {
-            output += associate.gameObject.name + ", ";
-            //associate.SetNewAssociatable(this);
+            if (associate.gameObject.TryGetComponent(out ISelectable selectable))
+            {
+                selectable.Select();
+            }
+        }
+    }
+
+    public void DeselectAssociates()
+    {
+        isSelected = false;
+        foreach (var associate in Associates)
+        {
+            DeselectAssociate(associate);
+        }
+    }
+
+    void SelectAssociate(ITransporter associate)
+    {
+        if (associate.gameObject.TryGetComponent(out ISelectable selectable))
+        {
+            selectable.Select();
+        }
+    }
+
+    void DeselectAssociate(ITransporter associate)
+    {
+        if (associate.gameObject.TryGetComponent(out ISelectable selectable))
+        {
+            selectable.Deselect();
         }
     }
 

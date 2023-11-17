@@ -1,9 +1,5 @@
-using QuikGraph;
-using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 public class Worker : MonoBehaviour, ISelectable, ITransporter
 {
@@ -16,8 +12,8 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
 
     const float moveSpeed = 6f;
-    public enum WorkerState { Idling, ToWithdraw, ToDeposit };
-    private WorkerState state = WorkerState.Idling;
+    public enum WorkerState { Idling, ToWithdraw, ToDeposit, Withdrawing };
+    public WorkerState state = WorkerState.Idling;
     public WorkerState State
     {
         get
@@ -33,22 +29,21 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     private Transform withdrawTransform, depositTransform, myTransform;
     private Rigidbody2D myRigidbody;
     private SpriteRenderer myRenderer;
+    private Animator myAnimator;
     private bool hasNewAssignment;
-    private const float idleTryNewAssignmentTime = 2f;
-    private float idleTimer;
     private Depositable myDeposit;
     private Withdrawable myWithdraw;
     private ResourceBank myBank;
     private ResourceBankManager bankManager;
-    private bool IsWithdrawing => State == WorkerState.ToWithdraw;
-    private bool IsDepositing => State == WorkerState.ToDeposit;
-    private IAssignable assignment;
+    private bool IsToWithdraw => State == WorkerState.ToWithdraw;
+    private bool IsToDeposit => State == WorkerState.ToDeposit;
 
 
     private Vector2[] path;
     private int pathIndex;
     private int pathDirection = 1;
 
+    private IAssignable assignment;
     public IAssignable Assignment
     {
         get
@@ -57,7 +52,9 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         }
         private set
         {
+            
             assignment = value;
+
             assignmentName = assignment == null ? "null" : assignment.gameObject.name;
         }
     }
@@ -73,12 +70,10 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         {
             TryRemoveAssociation(withdraw);
             withdraw = value;
-            TryAddAssociation(value);
+            TryAddAssociation(withdraw);
             withdrawTransform = (value == null) ? null : value.transform;
             withdrawName = (withdraw == null) ? "null" : withdraw.gameObject.name;
-            if(Withdraw != null) {
-                SetPath(withdrawTransform);
-            }
+
 
         }
     }
@@ -94,14 +89,11 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         {
             TryRemoveAssociation(deposit);
             deposit = value;
-            TryAddAssociation(value);
+            TryAddAssociation(deposit);
             depositTransform = (value == null) ? null : value.transform;
 
             depositName = (deposit == null) ? "null" : deposit.gameObject.name;
-            if (Deposit != null)
-            {
-                SetPath(depositTransform);
-            }
+
 
         }
     }
@@ -112,6 +104,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         myRigidbody = GetComponent<Rigidbody2D>();
         myTransform = transform;
         myRenderer = GetComponent<SpriteRenderer>();
+        myAnimator = GetComponent<Animator>();
         myDeposit = GetComponent<Depositable>();
         myWithdraw = GetComponent<Withdrawable>();
         myBank = GetComponent<ResourceBank>();
@@ -121,7 +114,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         SetIdle();
     }
 
-    void FixedUpdate()
+    void Update()
     {
         switch (State)
         {
@@ -139,20 +132,14 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         }
     }
 
+    void Rotate() {
+        transform.up = myRigidbody.velocity;
+    }
+
     void Idle()
     {
-
         myRigidbody.velocity = Vector2.zero;
-        if (idleTimer < 0)
-        {
-            SetNewAssignment();
-            idleTimer = idleTryNewAssignmentTime * Random.value * 3;
-        }
-        else
-        {
-            idleTimer -= Time.deltaTime;
-        }
-
+        myAnimator.speed = 0f;
     }
 
     void Move(Transform destination)
@@ -162,61 +149,24 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
             SetIdle();
             return;
         }
-        else if (idleTimer < 0)
+
+        Rotate();
+        myAnimator.speed = 1f;
+
+        if (GetPathEndPoint() != (Vector2)destination.transform.position)
         {
-            if (IsWithdrawing && AreWithdrawAndDepositIncompatible())
-            {
-                SetNewAssignment();
-            }
-            idleTimer = idleTryNewAssignmentTime * Random.value * 0.125f;
-        }
-        else
-        {
-            idleTimer -= Time.deltaTime;
+            SetPath(destination);
         }
         SetPathIndex();
-        Vector2 dest = (pathIndex + pathDirection < path.Length - 1 && pathIndex + pathDirection >= 0) ? (path[pathIndex] + path[pathIndex + pathDirection]) / 2 : path[pathIndex];
-        myRigidbody.velocity = moveSpeed * ((Vector3)dest - myTransform.position).normalized;
+        myRigidbody.velocity = moveSpeed * ((Vector3)path[pathIndex] - myTransform.position).normalized;
     }
 
     public void Assign(IAssignable assignable)
     {
-        if (assignable == Assignment) return;
-
-        Assignment = assignable;
-        SetDepositAndWithdraw(Assignment);
-
-        if (IsCarrying())
-        {
-            State = WorkerState.ToDeposit;
-        }
-        else
-        {
-            State = WorkerState.ToWithdraw;
-        }
+        SetNewAssignment(assignable);
     }
 
-    void SetDepositAndWithdraw(IAssignable assignable)
-    {
-        if (assignable == null) return;
 
-        if (assignable.gameObject.TryGetComponent(out Depositable temp1))
-        {
-            Deposit = temp1;
-
-            SetClosestWithdraw(assignable.transform);
-
-        }
-        else if (assignable.gameObject.TryGetComponent(out Withdrawable temp2))
-        {
-
-            Withdraw = temp2;
-
-            SetClosestDeposit(assignable.transform);
-        }
-
-
-    }
 
     void SetPathIndex()
     {
@@ -229,64 +179,38 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         {
             pathIndex += pathDirection;
             pathIndex = Mathf.Clamp(pathIndex, 0, path.Length - 1);
-            
+
         }
 
     }
 
     void SetPath(Transform destination)
     {
+        if (destination == null) return;
 
         pathDirection = 1;
         path = bankManager.buildingGraph.ConvertToArray(bankManager.buildingGraph.CalculatePath(myTransform.position, destination.position));
         pathIndex = 0;
+        if (path == null) return;
 
-        for(int i = 0; i < path.Length - 1; i++) {
-            Debug.DrawLine(path.ElementAt(i), path.ElementAt(i + 1), Color.red, 1f);
-        }
         
+
     }
 
-
-    void SetClosestWithdraw(Transform t)
+    Vector2 GetPathEndPoint(int direction = 1)
     {
-        ResourceBank bank;
+        if (path == null || path.Length == 0) return -Vector2.one;
 
-        Withdraw = null;
-
-        bank = bankManager.GetClosest<Withdrawable>(t, GetResourcesSought(false));
-
-        if (bank != null)
+        if (direction == 1)
         {
-            Withdraw = bank.GetComponent<Withdrawable>();
-
-
+            return path[^1];
         }
         else
         {
-            SetNewAssignment();
+            return path[0];
         }
-
     }
 
-    void SetClosestDeposit(Transform t)
-    {
-        ResourceBank bank;
-
-        Deposit = null;
-
-        bank = bankManager.GetClosest<Depositable>(t, GetResourcesSought(true));
-
-        if (bank != null)
-        {
-            Deposit = bank.GetComponent<Depositable>();
-        }
-        else
-        {
-            SetIdle();
-        }
-
-    }
 
     void TryAddAssociation(ITransactionable transactionable)
     {
@@ -313,6 +237,139 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     }
 
 
+   
+
+    public void SetNewAssignment(IAssignable assignment)
+    {
+        Assignment = assignment;
+
+        if (Assignment == null)
+        {
+            SetIdle();
+        }
+        else
+        {
+            SetDepositAndWithdraw(Assignment);
+            State = WorkerState.ToWithdraw;
+        }
+
+        if (IsCarrying())
+        {
+            hasNewAssignment = true;
+            SetClosestDeposit(transform);
+            State = WorkerState.ToDeposit;
+        }
+    }
+
+    void SetDepositAndWithdraw(IAssignable assignable)
+    {
+        if (assignable == null) return;
+
+        if (assignable.gameObject.TryGetComponent(out Depositable temp1))
+        {
+            Deposit = temp1;
+
+            SetClosestWithdraw(assignable.transform);
+
+        }
+        else if (assignable.gameObject.TryGetComponent(out Withdrawable temp2))
+        {
+
+            Withdraw = temp2;
+
+            SetClosestDeposit(assignable.transform);
+        }
+
+
+    }
+
+    void SetClosestWithdraw(Transform t)
+    {
+        if (IsAssignmentWithdrawable())
+        {
+            SetIdle();
+        }
+        else
+        {
+            Withdraw = null;
+            ResourceBank bank = bankManager.GetClosest<Withdrawable>(t, GetResourcesSought(false));
+
+            if (bank != null)
+            {
+                Withdraw = bank.GetComponent<Withdrawable>();
+            }
+            else
+            {
+                SetIdle();
+            }
+        }
+    }
+
+    void SetClosestDeposit(Transform t)
+    {
+        if (IsAssignmentDepositable() && !IsCarrying())
+        {
+            SetIdle();
+        }
+        else
+        {
+            Deposit = null;
+            ResourceBank bank = bankManager.GetClosest<Depositable>(t, GetResourcesSought(true));
+
+            if (bank != null)
+            {
+                Deposit = bank.GetComponent<Depositable>();
+            }
+            else
+            {
+                SetIdle();
+            }
+        }
+
+    }
+
+    void SettleDeposit()
+    {
+        SettleTransaction(myWithdraw, Deposit, false);
+
+        if (IsCarrying())
+        {
+            SetClosestDeposit(myTransform);
+            State = WorkerState.ToDeposit;
+        }
+        else
+        {
+            if (hasNewAssignment)
+            {
+                SetDepositAndWithdraw(Assignment);
+                hasNewAssignment = false;
+            }
+            else if (AreWithdrawAndDepositIncompatible())
+            {
+                SetIdle();
+            }
+
+            State = WorkerState.ToWithdraw;
+        }
+    }
+
+    void SettleWithdrawal()
+    {
+        SettleTransaction(Withdraw, myDeposit, true);
+        if (!IsCarrying())
+        {
+            SetIdle();    
+        }
+        else if (!CanDepositAcceptMyResources())
+        {
+            SetIdle();
+        }
+        else
+        {
+            state = WorkerState.ToDeposit;
+        }
+    }
+
     void OnCollisionEnter2D(Collision2D collision)
     {
         PerformDepositOrWithdrawal(collision);
@@ -326,67 +383,19 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     void PerformDepositOrWithdrawal(Collision2D collision)
     {
         GameObject collidedObject = collision.gameObject;
-        if (IsMyTarget(collidedObject))
+        if (!IsMyTarget(collidedObject)) return;
+
+        if (IsToWithdraw)
         {
-            if (IsWithdrawing)
-            {
-                SettleTransaction(collision.gameObject.GetComponentInChildren<IWithdrawable>(), myDeposit, true);
-                State = WorkerState.ToDeposit;
-                pathDirection = -pathDirection;
-                pathIndex += pathDirection;
+            SettleWithdrawal();
+            pathDirection *= -1;
 
-                if (IsAssignmentWithdrawable())
-                {
-                    Withdraw = Assignment.gameObject.GetComponent<Withdrawable>();
-
-                    if (AreWithdrawAndDepositIncompatible())
-                    {
-
-                        idleTimer = idleTryNewAssignmentTime * Random.value * 0.5f;
-                        SetIdle();
-
-                    }
-                }
-            }
-            else if(IsDepositing)
-            {
-                SettleTransaction(myWithdraw, collision.gameObject.GetComponent<IDepositable>(), false);
-                pathDirection = -pathDirection;
-                pathIndex += pathDirection;
-
-                if (IsCarrying())
-                {
-                    SetClosestDeposit(transform);
-                    State = WorkerState.ToDeposit;
-                }
-                else if (hasNewAssignment)
-                {
-                    SetDepositAndWithdraw(Assignment);
-                    hasNewAssignment = false;
-                    State = WorkerState.ToWithdraw;
-
-
-                }
-                else
-                {
-                    if (IsAssignmentDepositable())
-                    {
-                        Deposit = Assignment.gameObject.GetComponent<Depositable>();
-                        if (AreWithdrawAndDepositIncompatible())
-                        {
-
-                            idleTimer = idleTryNewAssignmentTime * Random.value * 0.5f;
-
-                            SetIdle();
-
-                        }
-                    }
-
-                    State = WorkerState.ToWithdraw;
-                }
-            }
         }
-
+        else if (IsToDeposit)
+        {
+            SettleDeposit();
+            pathDirection *= -1;
+        }
 
     }
 
@@ -405,8 +414,6 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         return myBank.myResources.Weight > 0;
     }
 
-    // when withdrawing, make sure to only withdraw resources the depositable will accept
-    // settle the worker transaction before the other transaction, in case the latter will trigger a new assignment
     void SettleTransaction(IWithdrawable from, IDepositable to, bool withdrawal)
     {
         Resources requested = Deposit.GetAvailableDeposits(from.GetCurrentResources());
@@ -414,9 +421,8 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
         if (withdrawal)
         {
-
-            to.Deposit(requested); // to is the worker depositable
-            from.Withdraw(requested);                    // from is where the withdrawal is being made
+            to.Deposit(requested);
+            from.Withdraw(requested);
         }
         else
         {
@@ -430,6 +436,12 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     {
         myRenderer.color = Color.red;
         myRenderer.sortingOrder = 1;
+        if (path == null) return;
+
+        for (int i = 0; i < path.Length - 1; i++)
+        {
+            Debug.DrawLine(path.ElementAt(i), path.ElementAt(i + 1), Color.red, 1f);
+        }
     }
 
     public void Deselect()
@@ -443,45 +455,19 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         return myWithdraw.GetCurrentResources();
     }
 
-    public void SetNewAssociatable(Associatable calledBy)
-    {
-        if (calledBy.gameObject == Assignment.gameObject)
-        {
-            SetNewAssignment();
-        }
-    }
-
     bool AreWithdrawAndDepositIncompatible()
     {
         if (Deposit == null || Withdraw == null) return true;
         return (Deposit.GetAvailableDeposits(Withdraw.GetCurrentResources())).Weight == 0;
     }
 
-    void SetNewAssignment()
+    bool CanDepositAcceptMyResources()
     {
-        Assignment = bankManager.GetAssignment(this);
-
-        if (Assignment == null)
-        {
-            SetIdle();
-        }
-        else
-        {
-            SetDepositAndWithdraw(Assignment);
-            State = WorkerState.ToWithdraw;
-
-        }
-
-        if (IsCarrying())
-        {
-            hasNewAssignment = true;
-            SetClosestDeposit(transform);
-            State = WorkerState.ToDeposit;
-
-        }
-
-
+        if (Deposit == null) return false;
+        else return Deposit.GetAvailableDeposits(myBank.myResources).Weight > 0;
     }
+
+
 
 
     Resources GetResourcesSought(bool isForDeposit, bool isForAssignment = false)
@@ -508,7 +494,13 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         Assignment = null;
         Deposit = null;
         Withdraw = null;
-
+        path = null;
+        bankManager.AddIdleWorker(this);
+        
     }
 
+    public void SetNewAssociatable(Associatable calledBy)
+    {
+        throw new System.NotImplementedException();
+    }
 }

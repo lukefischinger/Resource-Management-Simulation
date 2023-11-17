@@ -27,6 +27,7 @@ public class ResourceSource : MonoBehaviour, IAssignable
     public void Deselect()
     {
         myRenderer.color = Color.white;
+        GetComponent<Associatable>().DeselectAssociates();
     }
 
     public Resources GetDisplayData()
@@ -37,6 +38,7 @@ public class ResourceSource : MonoBehaviour, IAssignable
     public void Select()
     {
         myRenderer.color = Color.blue;
+        GetComponent<Associatable>().SelectAssociates();
     }
 
     void Awake()
@@ -46,6 +48,8 @@ public class ResourceSource : MonoBehaviour, IAssignable
         associatable = GetComponent<Associatable>();
         resourceBank = GetComponent<ResourceBank>();
         resourceBank.Initialize(startingResources, startingQuantities);
+        transform.position = Vector2Int.FloorToInt(transform.position) + Vector2.one * 0.5f;
+
 
         foreach (Resource r in resourceBank.myResources.ToList())
         {
@@ -54,16 +58,6 @@ public class ResourceSource : MonoBehaviour, IAssignable
                 Priority = (int)r;
             }
         }
-    }
-
-    void OnEnable()
-    {
-        resourceBank.Empty += associatable.EndAllAssociations;
-    }
-
-    void OnDisable()
-    {
-        resourceBank.Empty -= associatable.EndAllAssociations;
     }
 
 

@@ -16,11 +16,16 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
     public void Select()
     {
         myRenderer.color = Color.cyan;
+        inAssociatable.SelectAssociates();
+        outAssociatable.SelectAssociates();
+
     }
 
     public void Deselect()
     {
         myRenderer.color = baseColor;
+        inAssociatable.DeselectAssociates();
+        outAssociatable.DeselectAssociates();
     }
 
     public Resources GetDisplayData()
@@ -50,6 +55,8 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
 
         inAssociatable = GetComponent<Associatable>();
         outAssociatable = transform.GetChild(0).GetComponent<Associatable>();
+
+        transform.position = Vector2Int.FloorToInt(transform.position) + Vector2.one * 0.5f;
 
         foreach (Resource r in outResources)
         {
@@ -90,18 +97,7 @@ public class ResourceProcessor : MonoBehaviour, IAssignable
         throw new System.NotImplementedException();
     }
 
-    void OnEnable()
-    {
-        inBank.Full += inAssociatable.EndAllAssociations;
-        outBank.Empty += outAssociatable.EndAllAssociations;
 
-    }
-
-    void OnDisable()
-    {
-        inBank.Full -= inAssociatable.EndAllAssociations;
-        outBank.Empty -= outAssociatable.EndAllAssociations;
-    }
 
 
 }

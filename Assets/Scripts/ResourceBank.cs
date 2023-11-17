@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class ResourceBank : MonoBehaviour
@@ -12,28 +13,26 @@ public class ResourceBank : MonoBehaviour
 
     public Action Full = new(() => { });
     public Action Empty = new(() => { });
+    public Action Changed = new(() => { });
 
     public void Initialize(List<Resource> resources, List<float> quantities = null)
     {
         myResources = new Resources(resources, quantities);
+        
     }
 
     public void Add(Resource resource, float amount)
     {
         myResources.Add(resource, amount);
-        if (AtCapacity)
-        {
-            Full();
-        }
+        Changed();
+
     }
 
     public float Remove(Resource resource, float amount)
     {
-        float removeAmount = myResources.Remove(resource, amount);
-        if (myResources.Weight == 0)
-        {
-            Empty.Invoke();
-        }
+        float removeAmount = myResources.Remove(resource, amount);     
+        Changed();
+
         return removeAmount;
     }
 
@@ -41,6 +40,8 @@ public class ResourceBank : MonoBehaviour
     {
         return myResources.Contains(resource);
     }
+
+    
 
 }
 

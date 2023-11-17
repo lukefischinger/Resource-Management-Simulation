@@ -21,6 +21,7 @@ public class ResourceStorage : MonoBehaviour, ISelectable
         withdraw = GetComponent<Withdrawable>();
         resourceBank = GetComponent<ResourceBank>();
         associatable = GetComponent<Associatable>();
+        transform.position = Vector2Int.FloorToInt(transform.position) + Vector2.one * 0.5f;
 
         deposit.Initialize(startingResources, startingQuantities);
     }
@@ -28,6 +29,8 @@ public class ResourceStorage : MonoBehaviour, ISelectable
     public void Deselect()
     {
         myRenderer.color = Color.white;
+        GetComponent<Associatable>().DeselectAssociates();
+
     }
 
     public Resources GetDisplayData()
@@ -38,17 +41,8 @@ public class ResourceStorage : MonoBehaviour, ISelectable
     public void Select()
     {
         myRenderer.color = Color.green;
+        GetComponent<Associatable>().SelectAssociates();
+
     }
 
-
-
-    void OnEnable()
-    {
-        resourceBank.Full += associatable.EndAllAssociations;
-    }
-
-    void OnDisable()
-    {
-        resourceBank.Full -= associatable.EndAllAssociations;
-    }
 }

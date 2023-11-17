@@ -9,6 +9,7 @@ public class UIManager : MonoBehaviour
 	UIDocument uiDocument;
 	[SerializeField] BuildableManager buildables;
 	[SerializeField] VisualTreeAsset buildMenuItem;
+	[SerializeField] VisualTreeAsset processorSubMenu;
 	
 	[SerializeField] Buildable buildable;
 	
@@ -22,8 +23,20 @@ public class UIManager : MonoBehaviour
 
 	private void Click(ClickEvent evt, string buildableName)
 	{
-		Debug.Log("Building " + buildableName);
-		buildable.SetPrefab(buildableName);
+		switch(buildableName) {
+			case "Aquifer":
+                buildable.SetPrefab(buildableName);
+                break;
+			case "Base":
+                buildable.SetPrefab(buildableName);
+                break;
+			case "Worker":
+                buildable.SetPrefab(buildableName);
+                break;
+			case "Processor":
+                buildable.SetPrefab(buildableName);
+                break;
+		}
 	}
 	
 	
@@ -35,6 +48,7 @@ public class UIManager : MonoBehaviour
 		{
 			VisualElement item = buildMenuItem.Instantiate();
 			item.Q<Label>("buildable-name").text = buildable.name;
+			item.Q<IMGUIContainer>("buildable-sprite").style.backgroundImage = new StyleBackground(buildable.sprite);
 			item.Q<IMGUIContainer>("buildable-sprite").RegisterCallback<ClickEvent, string>(Click, buildable.name);
 
 			

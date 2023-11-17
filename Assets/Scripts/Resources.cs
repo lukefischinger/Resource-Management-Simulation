@@ -24,10 +24,9 @@ public class Resources
 
 	public Resources(Dictionary<Resource, float> dict)
 	{
-		Package = new Dictionary<Resource, float>();
-		InitializeResources(dict.Keys.ToList());
+		Package = new Dictionary<Resource, float>(dict);
+		CalculateWeight();
 		
-		Add(dict);
 	}
 
 	public Resources(List<Resource> resources, List<float> quantities = null)
@@ -86,6 +85,12 @@ public class Resources
 			{
 				Package.Add(r, 0);
 			}
+		}
+	}
+
+	private void CalculateWeight() {
+		foreach(KeyValuePair<Resource, float> kvp in Package) {
+			Weight += kvp.Value * ResourceWeights.Weight(kvp.Key);
 		}
 	}
 

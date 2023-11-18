@@ -155,7 +155,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
         if (GetPathEndPoint() != (Vector2)destination.transform.position)
         {
-            SetPath(destination);
+            bankManager.SubmitPathCalculationRequest(this, myTransform.position, destination.position);    
         }
         SetPathIndex();
         myRigidbody.velocity = moveSpeed * ((Vector3)path[pathIndex] - myTransform.position).normalized;
@@ -170,9 +170,14 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
     void SetPathIndex()
     {
-        if (pathIndex < path.Length - 1 && pathIndex > 0 && !bankManager.buildingGraph.Contains(path[pathIndex]))
+        if (path == null || (pathIndex < path.Length - 1 && pathIndex > 0 && !bankManager.pathwayGraph.IsInPathways(path[pathIndex])))
         {
-            SetPath(IsCarrying() ? depositTransform : withdrawTransform);
+            bankManager.SubmitPathCalculationRequest(
+                this, 
+                myTransform.position, 
+                IsCarrying() ? depositTransform.position : withdrawTransform.position
+            );
+            SetIdle();
             return;
         }
         if (((Vector2)myTransform.position - path[pathIndex]).magnitude < 0.5f)
@@ -184,17 +189,11 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
     }
 
-    void SetPath(Transform destination)
+    public void SetPath(Vector2[] path)
     {
-        if (destination == null) return;
-
         pathDirection = 1;
-        path = bankManager.buildingGraph.ConvertToArray(bankManager.buildingGraph.CalculatePath(myTransform.position, destination.position));
+        this.path = path;
         pathIndex = 0;
-        if (path == null) return;
-
-        
-
     }
 
     Vector2 GetPathEndPoint(int direction = 1)

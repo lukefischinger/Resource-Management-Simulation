@@ -13,7 +13,7 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     List<Worker> idleWorkerQueue = new List<Worker>();
     public List<string> idleWorkerQueueNames = new List<string>();
 
-    public BuildingGraph buildingGraph { get; private set; }
+    public PathwayGraph pathwayGraph { get; private set; }
     int dimension = 100;
     bool removeIntersectingEdges = false;
 
@@ -23,10 +23,16 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     public const int maxAssignmentsPerFrame = 1;
     public int assignmentsThisFrame = 0;
 
+
+    private List<PathRequest> pathsToCalculate = new List<PathRequest>();
+
+
+
+    
+
     void Awake()
     {
-        buildingGraph = new BuildingGraph(dimension);
-
+        pathwayGraph = new PathwayGraph(dimension);
 
         foreach (var bank in FindObjectsOfType<ResourceBank>())
         {
@@ -34,24 +40,35 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
         }
 
         assignments.Sort(Compare);
-        removeIntersectingEdges = true;
-
-
     }
+
+    public void SubmitPathCalculationRequest(Worker worker, Vector2 start, Vector2 target)
+    {
+        pathsToCalculate.Add(new PathRequest(
+            worker, 
+            GraphFunctions.VectorToInt(start, dimension), 
+            GraphFunctions.VectorToInt(target, dimension)
+        ));
+    }
+
+
+
+
 
 
     void Update()
     {
         if (removeIntersectingEdges)
         {
-            buildingGraph.RemoveIntersectingEdges();
+            pathwayGraph.RemoveIntersectingEdges(pathwayGraph.pathways);
             removeIntersectingEdges = false;
+            pathwayGraph.DrawGraph();
 
         }
 
         if (oldPathRemovalTimer < 0)
         {
-            buildingGraph.RemoveOldLookupTimes(Time.time);
+            pathwayGraph.RemoveOldLookupTimes(Time.time);
             oldPathRemovalTimer = oldPathRemovalTime;
         }
         else
@@ -68,6 +85,11 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
         }
     }
 
+    private void LateUpdate()
+    {
+        pathwayGraph.CalculatePaths(pathsToCalculate);
+        pathsToCalculate.Clear();
+    }
 
 
     public void AddIdleWorker(Worker worker)
@@ -92,13 +114,14 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
             {
                 nonAssignments.Add(source.GetComponent<ResourceBank>());
             }
-            buildingGraph.AddAllAdjacentVertices(bank.transform.position, true);
+
+            pathwayGraph.AddBuildingNode(GraphFunctions.VectorToInt(bank.transform.position, dimension));
             removeIntersectingEdges = true;
         }
         else if (!nonAssignments.Contains(bank))
         {
             nonAssignments.Add(bank);
-            buildingGraph.AddAllAdjacentVertices(bank.transform.position, true);
+            pathwayGraph.AddBuildingNode(GraphFunctions.VectorToInt(bank.transform.position, dimension));
             removeIntersectingEdges = true;
         }
     }
@@ -164,7 +187,8 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
         for (int i = 1; i < idleWorkerQueue.Count; i++)
         {
             currDistance = (idleWorkerQueue[i].transform.position - position).sqrMagnitude;
-            if (currDistance < closestDistance) {
+            if (currDistance < closestDistance)
+            {
                 closestIndex = i;
                 closestDistance = currDistance;
             }
@@ -235,5 +259,11 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     public int Compare(IAssignable x, IAssignable y)
     {
         return y.Priority - x.Priority;
+    }
+
+    private void OnDisable()
+    {
+        pathwayGraph.pathways.Dispose();
+        pathwayGraph.buildings.Dispose();
     }
 }

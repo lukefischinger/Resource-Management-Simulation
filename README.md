@@ -13,7 +13,8 @@ The graph (i.e., nodes and edges) representation of the system of resource nodes
 - Unity and C#
 - Job system and unmanaged data types (UnsafeLists)
 
-## Gifs
+## Gifs 
+(visuals are a work in progress)
 
 ### 200 workers finding their assignments (red lines are paths calculated with A*)
 ![Resource Management Gif](https://github.com/lukefischinger/Resource-Management-Simulation/assets/107618359/7d4f0ae4-432f-4b98-b441-b47c5a6e4494)

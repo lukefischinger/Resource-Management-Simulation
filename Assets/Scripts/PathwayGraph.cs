@@ -7,6 +7,7 @@ using Unity.Collections.LowLevel.Unsafe;
 using static GraphFunctions;
 using Unity.Collections;
 using Unity.Jobs;
+using System.Collections;
 
 public class PathwayGraph
 {
@@ -14,7 +15,7 @@ public class PathwayGraph
     List<int> buildingNodes;
 
 
-    Dictionary<(int, int), IEnumerable<Edge<int>>> paths = new Dictionary<(int, int), IEnumerable<Edge<int>>>();
+    Dictionary<(int, int), Vector2[]> paths = new Dictionary<(int, int), Vector2[]>();
     Dictionary<(int, int), float> lookupTimes = new Dictionary<(int, int), float>();
 
     const float lookupTimeRemoval = 60f;
@@ -40,24 +41,46 @@ public class PathwayGraph
 
     public void CalculatePaths(List<PathRequest> requests)
     {
+
+        for (int i = 0; i < requests.Count; i++)
+        {
+            (int, int) key = (requests[i].start, requests[i].target);
+            (int, int) keyReverse = (requests[i].target, requests[i].start);
+
+            if (paths.ContainsKey(key))
+            {
+                requests[i].requester.SetPath(paths[key]);
+                requests.RemoveAt(i--);
+                lookupTimes[key] = Time.time;
+            } else if(paths.ContainsKey(keyReverse)) {
+                requests[i].requester.SetPath(paths[key].Reverse().ToArray());
+                requests.RemoveAt(i--);
+                lookupTimes[keyReverse] = Time.time;
+            }
+        }
+
+
+        if (requests.Count == 0) return;
+
         NativeArray<NativeGraph> graphs = new NativeArray<NativeGraph>(requests.Count, Allocator.TempJob);
         NativeArray<int> s = new NativeArray<int>(requests.Count, Allocator.TempJob);
         NativeArray<int> t = new NativeArray<int>(requests.Count, Allocator.TempJob);
+        NativeArray<UnsafeList<int>> pathsOut = new NativeArray<UnsafeList<int>>(requests.Count, Allocator.TempJob);
 
         for (int i = 0; i < requests.Count; i++)
         {
             graphs[i] = CreatePathGraph(pathways, requests[i].start, requests[i].target);
             s[i] = requests[i].start;
             t[i] = requests[i].target;
+
         }
 
-        NativeArray<UnsafeList<int>> paths = new NativeArray<UnsafeList<int>>(4, Allocator.TempJob);
         AStarJob aStarJob = new AStarJob();
 
         aStarJob.graphs = graphs;
         aStarJob.s = s;
         aStarJob.t = t;
-        aStarJob.paths = paths;
+        aStarJob.paths = pathsOut;
 
         JobHandle handle = aStarJob.Schedule(requests.Count, 1);
         handle.Complete();
@@ -65,20 +88,32 @@ public class PathwayGraph
 
         for (int i = 0; i < requests.Count; i++)
         {
-            requests[i].requester.SetPath(ToVector(paths[i], graphs[i].dimension));
-            paths[i].Dispose();
+
+            if (pathsOut[i].Length > 0)
+            {
+                (int, int) key = (requests[i].start, requests[i].target);
+                paths[key] = ToVector(pathsOut[i], graphs[i].dimension);
+                lookupTimes[key] = Time.time;
+                requests[i].requester.SetPath(paths[key]);
+            }
+
+            graphs[i].Dispose();
+            pathsOut[i].Dispose();
+
         }
-        paths.Dispose();
+        pathsOut.Dispose();
         s.Dispose();
         t.Dispose();
+        graphs.Dispose();
     }
 
+    // reverses and converts to vector2 array
     Vector2[] ToVector(UnsafeList<int> path, int dimension)
     {
         Vector2[] result = new Vector2[path.Length];
-        for (int i = 0; i < path.Length; i++)
+        for (int i = 1; i <= path.Length; i++)
         {
-            result[i] = IntToVector2(path[i], dimension);
+            result[^i] = IntToVector2(path[i - 1], dimension);
         }
         return result;
     }
@@ -89,7 +124,7 @@ public class PathwayGraph
         NativeGraph result = new NativeGraph(graph);
         Edge closest = GetClosestVertex(result, s, 0, result.dimension, 0, result.dimension);
         result.AddEdge(s, closest.target, closest.weight);
-        AddClosestEdges(result, t);
+        AddAdjacentEdges(result, t);
         return result;
     }
 
@@ -159,6 +194,8 @@ public class PathwayGraph
                     if ((i != 0 || j != 0) && currSource % Dimension + (difference - j) % Dimension < Dimension)
                     {
                         pathGraph.AddEdge(currSource, currTarget, weight);
+                        pathGraph.AddEdge(currTarget, currSource, weight);
+
                     }
                 }
             }
@@ -225,6 +262,24 @@ public class PathwayGraph
         }
     }
 
+    void AddAdjacentEdges(NativeGraph graph, int v)
+    {
+        int target;
+        for (int i = -1; i <= 1; i++)
+        {
+            for (int j = -1; j <= 1; j++)
+            {
+                if (i != j && (i == 0 || j == 0))
+                {
+                    target = v + i * Dimension + j;
+                    graph.AddEdge(v, target, Distance(v, target, graph.dimension, DistanceType.Euclidean));
+                    graph.AddEdge(target, v, Distance(v, target, graph.dimension, DistanceType.Euclidean));
+
+                }
+            }
+        }
+    }
+
     void AddSquareAround(NativeGraph graph, int v)
     {
         for (int i = -1; i < 1; i++)
@@ -243,46 +298,39 @@ public class PathwayGraph
     }
 
 
-    public void RemoveIntersectingEdges(NativeGraph graph)
+    public IEnumerator RemoveIntersectingEdges(NativeGraph graph)
     {
+        yield return null;
 
-        var toRemove = new List<(int, int)>();
+
         UnsafeList<Edge> edgeList;
-
         for (int i = 0; i < graph.edges.Length; i++)
         {
             edgeList = graph.edges[i];
-            foreach (Edge edge in edgeList)
+            for (int j = 0; j < edgeList.Length; j ++)
             {
                 Vector2 source = ToVector(i),
-                target = ToVector(edge.target),
-                orthogonal = new Vector2(-(target - source).y, (target - source).x).normalized * 0.4f;
-
-
+                target = ToVector(edgeList[j].target),
+                orthogonal = new Vector2(-(target - source).y, (target - source).x).normalized * 0.25f;
 
                 Vector2[] sources = new Vector2[] { source, source + orthogonal, source - orthogonal };
 
                 foreach (var src in sources)
                 {
-
                     RaycastHit2D hit = Physics2D.Raycast(src, target - source, (target - source).magnitude, LayerMask.GetMask("Default"));
 
                     if (hit.collider != null)
                     {
-                        toRemove.Add((i, edge.target));
+                        Debug.Log(j);
+                        edgeList.RemoveAt(j);
+                        j--;
+                        Debug.DrawLine(source, target, Color.red, 1f);
+                        break;
                     }
-
                 }
             }
-
+            graph.edges[i] = edgeList;
         }
-
-        foreach ((int, int) edge in toRemove)
-        {
-            pathways.RemoveEdge(edge.Item1, edge.Item2);
-        }
-
-
     }
 
 
@@ -296,8 +344,14 @@ public class PathwayGraph
     }
 
 
-    public bool IsInPathways(Vector2 vec) {
-        return pathways.edges[VectorToInt(vec, Dimension)].Length > 0;
+    public bool IsInPathways(Vector2 s, Vector2 t)
+    {
+        return pathways.Contains(VectorToInt(s, Dimension), VectorToInt(t, Dimension));
+    }
+
+    public bool IsInBuildings(Vector2 vec)
+    {
+        return buildings.edges[VectorToInt(vec, Dimension)].Length > 0;
     }
 
 
@@ -387,7 +441,7 @@ public class PathwayGraph
 
                 foreach (var edge in pathways.edges[i])
                 {
-                    Debug.DrawLine(IntToVector3(i, Dimension), IntToVector3(edge.target, Dimension), Color.green, 1f);
+                    Debug.DrawLine(IntToVector3(i, Dimension), IntToVector3(edge.target, Dimension), Color.green, 3f);
 
 
                 }
@@ -400,7 +454,7 @@ public class PathwayGraph
 
                 foreach (var edge in buildings.edges[i])
                 {
-                    Debug.DrawLine(IntToVector3(i, Dimension), IntToVector3(edge.target, Dimension), Color.blue, 1f);
+                    Debug.DrawLine(IntToVector3(i, Dimension), IntToVector3(edge.target, Dimension), Color.blue, 3f);
                 }
         }
     }

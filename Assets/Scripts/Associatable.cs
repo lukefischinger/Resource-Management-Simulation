@@ -5,7 +5,7 @@ using UnityEngine.UI;
 public class Associatable : MonoBehaviour
 {
     public int Count { get; private set; }
-    public int MaxCount { get; private set; } = 8;
+    public int MaxCount { get; private set; } = 24;
 
     bool isSelected = false;
     public List<ITransporter> Associates { get; private set; } = new List<ITransporter>();

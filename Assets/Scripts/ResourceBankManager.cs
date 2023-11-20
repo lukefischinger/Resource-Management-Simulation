@@ -30,7 +30,7 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
 
     
 
-    void Awake()
+    void Start()
     {
         pathwayGraph = new PathwayGraph(dimension);
 
@@ -52,20 +52,24 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
     }
 
 
-
-
-
-
-    void Update()
-    {
+    void FixedUpdate() {
         if (removeIntersectingEdges)
         {
-            pathwayGraph.RemoveIntersectingEdges(pathwayGraph.pathways);
+
+            StartCoroutine(pathwayGraph.RemoveIntersectingEdges(pathwayGraph.pathways));
+
             removeIntersectingEdges = false;
             pathwayGraph.DrawGraph();
 
         }
 
+    }
+
+
+
+    void Update()
+    {
+        
         if (oldPathRemovalTimer < 0)
         {
             pathwayGraph.RemoveOldLookupTimes(Time.time);
@@ -77,18 +81,22 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
         }
 
         GiveIdleWorkersAssignments();
-
         idleWorkerQueueNames.Clear();
         foreach (var idleWorker in idleWorkerQueue)
         {
             idleWorkerQueueNames.Add(idleWorker.name);
         }
+
+
     }
 
     private void LateUpdate()
     {
+       
+
         pathwayGraph.CalculatePaths(pathsToCalculate);
         pathsToCalculate.Clear();
+
     }
 
 
@@ -162,12 +170,12 @@ public class ResourceBankManager : MonoBehaviour, IComparer<IAssignable>
         while (idleWorkerQueue.Count > 0 && assignmentQueue.Count > 0 && count < maxAssignmentsPerFrame)
         {
 
-            int closest = ClosestWorker(assignmentQueue[0].transform.position);
+            int closest = 0; //ClosestWorker(assignmentQueue[0].transform.position);
             idleWorkerQueue[closest].SetNewAssignment(assignmentQueue[0]);
             idleWorkerQueue.RemoveAt(closest);
             count++;
 
-            while (assignmentQueue.Count > 0 && !IsValidAssignment(assignmentQueue[0]))
+            while (count < maxAssignmentsPerFrame && assignmentQueue.Count > 0 && !IsValidAssignment(assignmentQueue[0]))
             {
                 assignmentQueue.RemoveAt(0);
             }

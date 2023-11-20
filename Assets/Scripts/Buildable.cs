@@ -14,6 +14,8 @@ public class Buildable : MonoBehaviour
 	Transform myTransform;
 	Camera cam;
 
+	bool shouldBuild = false;
+
 	void Awake()
 	{
 		myRenderer = GetComponent<SpriteRenderer>();
@@ -36,7 +38,7 @@ public class Buildable : MonoBehaviour
 
 		if (input.Click.triggered)
 		{
-			Build();
+			shouldBuild = true;
 		}
 
 		if(input.Cancel.triggered) {
@@ -44,7 +46,15 @@ public class Buildable : MonoBehaviour
 		}
 	}
 
-	void Move()
+    private void FixedUpdate()
+    {
+        if(shouldBuild) {
+			Build();
+			shouldBuild = false;
+		}
+    }
+
+    void Move()
 	{
 		Vector3 xyz = cam.ScreenToWorldPoint(input.Pointer);
 		myTransform.position = new Vector3(Mathf.Floor(xyz.x) + 0.5f, Mathf.Floor(xyz.y) + 0.5f, 0);
@@ -54,7 +64,10 @@ public class Buildable : MonoBehaviour
 	{
 		GameObject buildable = Instantiate(buildableData.prefab);
 		buildable.transform.position = myTransform.position;
-        bankManager.Add(buildable.GetComponent<ResourceBank>());
+		foreach (var bank in buildable.GetComponentsInChildren<ResourceBank>())
+		{
+			bankManager.Add(bank);
+		}
 	}
 
 	void OnEnable()

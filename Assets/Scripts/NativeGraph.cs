@@ -16,55 +16,58 @@ public struct Edge
 
 public struct NativeGraph
 {
-    public NativeArray<UnsafeList<Edge>> edges;
+    public UnsafeList<UnsafeList<Edge>> edges;
     public int dimension;
 
     public NativeGraph(List<Edge>[] edges, int dimension)
     {
         this.dimension = dimension;
 
-        this.edges = new NativeArray<UnsafeList<Edge>>(edges.Length, Allocator.Persistent);
+        var temp = new UnsafeList<UnsafeList<Edge>>(dimension * dimension, Allocator.Persistent);
+
         for (int i = 0; i < edges.Length; i++)
         {
-            if (edges[i] == null) continue;
-
             var list = new UnsafeList<Edge>(edges[i].Count, Allocator.Persistent);
-
-
             for (int j = 0; j < edges[i].Count; j++)
             {
                 list.Add(edges[i][j]);
             }
 
-            this.edges[i] = list;
-
+            temp.Add(list);
         }
+
+        this.edges = temp;
+
     }
 
     public NativeGraph(int dimension)
     {
-        edges = new NativeArray<UnsafeList<Edge>>(dimension * dimension, Allocator.Persistent);
-        for (int i = 0; i < edges.Length; i++)
+        var temp = new UnsafeList<UnsafeList<Edge>>(dimension * dimension, Allocator.Persistent);
+
+        for (int i = 0; i < dimension * dimension; i++)
         {
             var list = new UnsafeList<Edge>(1, Allocator.Persistent);
-            edges[i] = list;
+            temp.Add(list);
 
         }
         this.dimension = dimension;
+        edges = temp;
+
     }
 
 
-    public NativeGraph(NativeGraph graph) {
+    public NativeGraph(NativeGraph graph)
+    {
         dimension = graph.dimension;
-        edges = new NativeArray<UnsafeList<Edge>>(graph.edges.Length, Allocator.Persistent);
-        for(int i = 0; i < graph.edges.Length; i++) {
+        var temp = new UnsafeList<UnsafeList<Edge>>(graph.edges.Length, Allocator.Persistent);
+        for (int i = 0; i < graph.edges.Length; i++)
+        {
             var list = new UnsafeList<Edge>(graph.edges[i].Length, Allocator.Persistent);
-            
-            for(int j = 0; j < graph.edges[i].Length; j++) {
-                list.Add(graph.edges[i][j]);
-            }
-            edges[i] = list;
+            list.CopyFrom(graph.edges[i]);
+            temp.Add(list);
         }
+
+        edges = temp;
     }
 
 
@@ -106,13 +109,25 @@ public struct NativeGraph
         }
     }
 
+    public bool Contains(int v, int u)
+    {
+        for (int i = 0; i < edges[v].Length; i++)
+        {
+            if (edges[v][i].target == u)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void Dispose()
     {
-        foreach (var edgeList in edges)
+        for (int i = 0; i < edges.Length; i++)
         {
-            if (edgeList.IsCreated)
+            if (edges[i].IsCreated)
             {
-                edgeList.Dispose();
+                edges[i].Dispose();
             }
         }
         if (edges.IsCreated)

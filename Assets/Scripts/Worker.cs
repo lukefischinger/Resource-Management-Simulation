@@ -39,7 +39,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     private bool IsToDeposit => State == WorkerState.ToDeposit;
 
 
-    private Vector2[] path;
+    public Vector2[] path;
     private int pathIndex;
     private int pathDirection = 1;
 
@@ -52,7 +52,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         }
         private set
         {
-            
+
             assignment = value;
 
             assignmentName = assignment == null ? "null" : assignment.gameObject.name;
@@ -116,6 +116,29 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
     void Update()
     {
+        if (gameObject.name == "Worker 1 (8)")
+        {
+            //Debug.Log("here");
+        }
+        switch (State)
+        {
+            case WorkerState.ToWithdraw:
+                PrepareMove(withdrawTransform);
+                break;
+            case WorkerState.ToDeposit:
+                PrepareMove(depositTransform);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (gameObject.name == "Worker 1 (8)")
+        {
+            //Debug.Log("here");
+        }
         switch (State)
         {
             case WorkerState.ToWithdraw:
@@ -132,7 +155,8 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         }
     }
 
-    void Rotate() {
+    void Rotate()
+    {
         transform.up = myRigidbody.velocity;
     }
 
@@ -142,9 +166,21 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         myAnimator.speed = 0f;
     }
 
-    void Move(Transform destination)
+    void PrepareMove(Transform destination)
     {
         if (destination == null)
+        {
+            SetIdle();
+        }
+        else if (GetPathEndPoint() != (Vector2)destination.transform.position)
+        {
+            bankManager.SubmitPathCalculationRequest(this, myTransform.position, destination.position);
+        }
+    }
+
+    void Move(Transform destination)
+    {
+        if (destination == null || path == null || path.Length == 0)
         {
             SetIdle();
             return;
@@ -153,10 +189,6 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         Rotate();
         myAnimator.speed = 1f;
 
-        if (GetPathEndPoint() != (Vector2)destination.transform.position)
-        {
-            bankManager.SubmitPathCalculationRequest(this, myTransform.position, destination.position);    
-        }
         SetPathIndex();
         myRigidbody.velocity = moveSpeed * ((Vector3)path[pathIndex] - myTransform.position).normalized;
     }
@@ -170,17 +202,15 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
     void SetPathIndex()
     {
-        if (path == null || (pathIndex < path.Length - 1 && pathIndex > 0 && !bankManager.pathwayGraph.IsInPathways(path[pathIndex])))
+        if (path == null || path.Length == 0)
         {
             bankManager.SubmitPathCalculationRequest(
-                this, 
-                myTransform.position, 
+                this,
+                myTransform.position,
                 IsCarrying() ? depositTransform.position : withdrawTransform.position
             );
-            SetIdle();
-            return;
         }
-        if (((Vector2)myTransform.position - path[pathIndex]).magnitude < 0.5f)
+        else if (((Vector2)myTransform.position - path[pathIndex]).magnitude < 0.5f)
         {
             pathIndex += pathDirection;
             pathIndex = Mathf.Clamp(pathIndex, 0, path.Length - 1);
@@ -191,9 +221,9 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
     public void SetPath(Vector2[] path)
     {
-        pathDirection = 1;
         this.path = path;
         pathIndex = 0;
+        pathDirection = 1;
     }
 
     Vector2 GetPathEndPoint(int direction = 1)
@@ -236,7 +266,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
     }
 
 
-   
+
 
     public void SetNewAssignment(IAssignable assignment)
     {
@@ -357,7 +387,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         SettleTransaction(Withdraw, myDeposit, true);
         if (!IsCarrying())
         {
-            SetIdle();    
+            SetIdle();
         }
         else if (!CanDepositAcceptMyResources())
         {
@@ -371,29 +401,44 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        PerformDepositOrWithdrawal(collision);
+        PerformDepositOrWithdrawal(collision.gameObject);
     }
 
     void OnCollisionStay2D(Collision2D collision)
     {
-        PerformDepositOrWithdrawal(collision);
+        PerformDepositOrWithdrawal(collision.gameObject);
     }
 
-    void PerformDepositOrWithdrawal(Collision2D collision)
+    void PerformDepositOrWithdrawal(GameObject obj)
     {
-        GameObject collidedObject = collision.gameObject;
-        if (!IsMyTarget(collidedObject)) return;
-
-        if (IsToWithdraw)
+        if (IsMyTarget(obj))
         {
-            SettleWithdrawal();
-            pathDirection *= -1;
+            if (IsToWithdraw)
+            {
+                SettleWithdrawal();
+                pathDirection *= -1;
 
+            }
+            else if (IsToDeposit)
+            {
+                SettleDeposit();
+                pathDirection *= -1;
+            }
         }
-        else if (IsToDeposit)
+        else if (Deposit == null || Withdraw == null)
         {
-            SettleDeposit();
-            pathDirection *= -1;
+            return;
+        }
+        else if (obj != Deposit.gameObject && obj != Withdraw.gameObject)
+        {
+            if (path == null || (pathIndex - pathDirection >= 0 && pathIndex - pathDirection < path.Length && !bankManager.pathwayGraph.IsInPathways(path[pathIndex - pathDirection], path[pathIndex])))
+            {
+                bankManager.SubmitPathCalculationRequest(
+                       this,
+                       myTransform.position,
+                       IsCarrying() ? depositTransform.position : withdrawTransform.position
+                   );
+            }
         }
 
     }
@@ -495,7 +540,7 @@ public class Worker : MonoBehaviour, ISelectable, ITransporter
         Withdraw = null;
         path = null;
         bankManager.AddIdleWorker(this);
-        
+
     }
 
     public void SetNewAssociatable(Associatable calledBy)

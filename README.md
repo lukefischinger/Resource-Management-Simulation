@@ -3,8 +3,9 @@ This is a simple resource management/supply chain simulation, with workers that 
 When assignments are completed, workers join an idle workers queue, from which they are given new assignments, which are also queued according to their priority level.
 
 The graph (i.e., nodes and edges) representation of the system of resource nodes and the A* pathfinding algorithm were custom implementations using [UnsafeLists](https://docs.unity3d.com/Packages/com.unity.collections@0.4/api/Unity.Collections.LowLevel.Unsafe.UnsafeList.html) (an unmanaged C# type for use in Unity), in order to take advantage of Unity's highly performant Job system and Burst Compiler. See 
-- [NativeGraphs.cs](https://github.com/lukefischinger/Resource-Management-Simulation/blob/master/Assets/Scripts/NativeGraph.cs) for custom Graph data structure implementation, and
-- [AStarJob.cs](https://github.com/lukefischinger/Resource-Management-Simulation/blob/master/Assets/Scripts/AStarJob.cs) for A* algorithm implementation using IJobParallelFor.
+- [NativeGraphs.cs](https://github.com/lukefischinger/Resource-Management-Simulation/blob/master/Assets/Scripts/NativeGraph.cs) for custom Graph data structure implementation,
+- [AStarJob.cs](https://github.com/lukefischinger/Resource-Management-Simulation/blob/master/Assets/Scripts/AStarJob.cs) for A* algorithm implementation using IJobParallelFor, and
+- [PathwayGraph.cs](https://github.com/lukefischinger/Resource-Management-Simulation/blob/master/Assets/Scripts/PathwayGraph.cs) for execution of a batch of AStarJob calls.
 
 ## Built With
 - Unity and C#
